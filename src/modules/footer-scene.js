@@ -4,14 +4,17 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { ScrollTrigger } from '../core/gsap.js';
 
-// modelUrl/hdrUrl point at public/model.glb and public/hdri.exr, served
-// from this deployment's own base path (Vite copies public/ verbatim to
-// dist/ — BASE_URL resolves correctly in both dev, "/", and the GitHub
-// Pages build, "/hpo/"). Model loading still fails safe if these are ever
-// wrong — canvas hides, HTML footer stays usable.
+// modelUrl/hdrUrl point at public/model.glb and public/hdri.exr, resolved
+// against import.meta.url (this module's own URL) rather than the document —
+// this script is embedded cross-origin (loaded from GitHub Pages into a page
+// served from the Webflow domain), so a root-relative path like "/hpo/x"
+// would otherwise resolve against whatever origin the *page* is on, not
+// where the script itself was fetched from. import.meta.url always reflects
+// the latter, correct in both dev and the GitHub Pages build. Model loading
+// still fails safe if these are ever wrong — canvas hides, footer stays usable.
 const DEFAULT_CONFIG = {
-  modelUrl: `${import.meta.env.BASE_URL}model.glb`,
-  hdrUrl: `${import.meta.env.BASE_URL}hdri.exr`,
+  modelUrl: new URL(`${import.meta.env.BASE_URL}model.glb`, import.meta.url).href,
+  hdrUrl: new URL(`${import.meta.env.BASE_URL}hdri.exr`, import.meta.url).href,
   // Empty, not placeholder paths: the footer video's <source> already has a
   // real, working URL in the markup, and there's no fallback background
   // image at all — both defaulted to a dead "/assets/..." path that 404s on

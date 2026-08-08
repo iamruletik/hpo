@@ -1,21 +1,3 @@
-const PRELOADER_SEEN_KEY = 'hpo-preloader-seen';
-
-function hasSeenPreloader() {
-  try {
-    return window.localStorage.getItem(PRELOADER_SEEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markPreloaderSeen() {
-  try {
-    window.localStorage.setItem(PRELOADER_SEEN_KEY, '1');
-  } catch {
-    // localStorage unavailable (private browsing, disabled) — preloader just replays next time.
-  }
-}
-
 const MINIMUM_SEQUENCE = 2000;
 const COMPLETION_DURATION = 260;
 const REVEAL_DELAY = 220;
@@ -143,15 +125,9 @@ export function initPreloader() {
 
   function finish() {
     document.documentElement.classList.remove('preloader-active');
-    markPreloaderSeen();
     window.preloaderFinished = true;
     window.dispatchEvent(new CustomEvent('preloader:complete'));
     preloader.remove();
-  }
-
-  if (hasSeenPreloader()) {
-    finish();
-    return;
   }
 
   preloader.dataset.initialized = 'true';

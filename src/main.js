@@ -24,6 +24,8 @@ import { initNavProgress } from './modules/nav-progress.js';
 import { initCtaReveal } from './modules/cta-reveal.js';
 import { initOverviewReveal } from './modules/overview-reveal.js';
 import { initBodyThemeScroll } from './modules/body-theme-scroll.js';
+// TEMPORARY — remove this import + call below once done previewing.
+import { initHeroShaderPreview } from './modules/hero-shader-preview.js';
 
 initPreloader();
 initLenis();
@@ -50,3 +52,4 @@ initNavProgress();
 initCtaReveal();
 initOverviewReveal();
 initBodyThemeScroll();
+initHeroShaderPreview(); // TEMPORARY
