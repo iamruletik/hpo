@@ -1,0 +1,443 @@
+<script>
+  (() => {
+    const currentScript = document.currentScript;
+
+    const preloader = currentScript?.closest('.preloader') || document.querySelector('.preloader');
+
+    if (!preloader) {
+      window.preloaderFinished = true;
+      return;
+    }
+
+    if (preloader.dataset.initialized === 'true') return;
+
+    preloader.dataset.initialized = 'true';
+    window.preloaderFinished = false;
+
+    const fill = preloader.querySelector('.track-fill');
+    const number = preloader.querySelector('.progress-number');
+    const logo = preloader.querySelector('.brand-logo');
+
+    const letters = [...preloader.querySelectorAll('.logo-letter')];
+
+    /*
+     * Настройки.
+     */
+
+    const minimumSequence = 2000;
+    const completionDuration = 260;
+
+    const revealDelay = 220;
+    const revealDuration = 720;
+
+    /*
+     * Максимальное ожидание ресурсов Hero.
+     * После этого прелоадер всё равно завершится.
+     */
+
+    const maximumWaitingTime = 5000;
+
+    const progressStops = [
+      [0, 0],
+      [154, 3],
+      [308, 15],
+      [462, 24],
+      [615, 41],
+      [769, 50],
+      [923, 59],
+      [1077, 59],
+      [1231, 61],
+      [1385, 67],
+      [1538, 82],
+      [1692, 83],
+      [1846, 88],
+      [2000, 90],
+    ];
+
+    /*
+     * Пороги появления букв логотипа.
+     * Логотип использует собственный прогресс 0–100,
+     * который не зависит от загрузки страницы.
+     */
+
+    const letterThresholds = [61, 67, 75, 82, 88, 93, 97];
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let pageReady = false;
+    let completingAt = null;
+    let completionStarted = false;
+    let animationFrame = null;
+    let logoFinished = false;
+
+    let lastLoadingProgress = -1;
+    let lastLogoProgress = -1;
+    let lastNumber = -1;
+
+    const startedAt = performance.now();
+
+    /*
+     * Проверяем обязательные элементы.
+     */
+
+    if (!fill || !number || !logo) {
+      finishImmediately();
+      return;
+    }
+
+    /*
+     * Начальное состояние.
+     * Исправляет старые inline-значения вроде width: 90%.
+     */
+
+    fill.style.width = '';
+    fill.style.transform = 'translateX(-50%) scaleX(0)';
+
+    number.textContent = '0';
+
+    logo.style.setProperty('--logo-shift', '-41.6%');
+
+    letters.forEach((letter) => {
+      letter.classList.remove('is-visible');
+    });
+
+    document.documentElement.classList.add('preloader-active');
+
+    preloader.classList.remove('is-complete');
+    preloader.classList.add('is-loading');
+
+    /*
+     * Сразу сигнализируем браузеру, что прелоадер
+     * ещё не закончил работу.
+     */
+
+    window.preloaderFinished = false;
+
+    function finishImmediately() {
+      document.documentElement.classList.remove('preloader-active');
+
+      window.preloaderFinished = true;
+
+      window.dispatchEvent(new CustomEvent('preloader:complete'));
+
+      preloader?.remove();
+    }
+
+    /*
+     * Искусственный прогресс линии от 0 до 90%.
+     */
+
+    function progressAt(time) {
+      for (let index = 1; index < progressStops.length; index += 1) {
+        const [nextTime, nextValue] = progressStops[index];
+
+        const [previousTime, previousValue] = progressStops[index - 1];
+
+        if (time <= nextTime) {
+          const position = (time - previousTime) / (nextTime - previousTime);
+
+          return previousValue + (nextValue - previousValue) * position;
+        }
+      }
+
+      return 90;
+    }
+
+    function easeOutCubic(value) {
+      return 1 - Math.pow(1 - value, 3);
+    }
+
+    /*
+     * Отдельно обновляем линию и число.
+     * Они могут остановиться на 90%.
+     */
+
+    function renderLoadingProgress(progress) {
+      const safeProgress = Math.min(100, Math.max(0, progress));
+
+      if (Math.abs(safeProgress - lastLoadingProgress) > 0.001) {
+        fill.style.transform = `translateX(-50%) scaleX(${safeProgress / 100})`;
+
+        lastLoadingProgress = safeProgress;
+      }
+
+      const roundedProgress = Math.round(safeProgress);
+
+      if (roundedProgress !== lastNumber) {
+        number.textContent = String(roundedProgress);
+
+        lastNumber = roundedProgress;
+      }
+    }
+
+    /*
+     * Отдельно обновляем логотип.
+     * Его анимация не зависит от pageReady.
+     */
+
+    function renderLogoProgress(progress) {
+      const safeProgress = Math.min(100, Math.max(0, progress));
+
+      if (Math.abs(safeProgress - lastLogoProgress) < 0.001) {
+        return;
+      }
+
+      lastLogoProgress = safeProgress;
+
+      const logoPosition = Math.min(1, Math.max(0, (safeProgress - 58) / 42));
+
+      const logoShift = -41.6 * (1 - logoPosition);
+
+      logo.style.setProperty('--logo-shift', `${logoShift}%`);
+
+      letters.forEach((letter, index) => {
+        const threshold = letterThresholds[index] ?? 100;
+
+        if (safeProgress >= threshold) {
+          letter.classList.add('is-visible');
+        }
+      });
+    }
+
+    /*
+     * Ожидаем DOM, потому что .section_hero
+     * расположена после .preloader.
+     */
+
+    function waitForDOM() {
+      if (document.readyState !== 'loading') {
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        document.addEventListener('DOMContentLoaded', resolve, { once: true });
+      });
+    }
+
+    function waitForImage(image) {
+      if (image.complete) {
+        if (typeof image.decode !== 'function') {
+          return Promise.resolve();
+        }
+
+        return image.decode().catch(() => undefined);
+      }
+
+      return new Promise((resolve) => {
+        const finish = () => {
+          if (typeof image.decode !== 'function') {
+            resolve();
+            return;
+          }
+
+          image
+            .decode()
+            .catch(() => undefined)
+            .finally(resolve);
+        };
+
+        image.addEventListener('load', finish, { once: true });
+
+        image.addEventListener('error', resolve, { once: true });
+      });
+    }
+
+    function waitForVideo(video) {
+      /*
+       * readyState >= 2 означает, что доступен
+       * текущий кадр видео.
+       */
+
+      if (video.readyState >= 2) {
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        const finish = () => {
+          video.removeEventListener('loadeddata', finish);
+
+          video.removeEventListener('canplay', finish);
+
+          video.removeEventListener('error', finish);
+
+          resolve();
+        };
+
+        video.addEventListener('loadeddata', finish, { once: true });
+
+        video.addEventListener('canplay', finish, { once: true });
+
+        video.addEventListener('error', finish, { once: true });
+      });
+    }
+
+    async function waitForHeroAssets() {
+      await waitForDOM();
+
+      const hero = preloader.nextElementSibling?.matches('.section_hero') ? preloader.nextElementSibling : document.querySelector('.section_hero');
+
+      if (!hero) return;
+
+      /*
+       * Ждём только изображения и видео,
+       * расположенные внутри Hero.
+       */
+
+      const heroImages = [...hero.querySelectorAll('img')];
+
+      const heroVideos = [...hero.querySelectorAll('video')];
+
+      const imagesReady = Promise.all(heroImages.map(waitForImage));
+
+      const videosReady = Promise.all(heroVideos.map(waitForVideo));
+
+      const fontsReady = document.fonts?.ready ? document.fonts.ready.catch(() => undefined) : Promise.resolve();
+
+      await Promise.all([imagesReady, videosReady, fontsReady]);
+    }
+
+    /*
+     * Даже если изображение или видео зависнет,
+     * максимум через 5 секунд pageReady станет true.
+     */
+
+    function waitForHeroReady() {
+      const assetsReady = waitForHeroAssets().catch(() => undefined);
+
+      const safetyTimeout = new Promise((resolve) => {
+        window.setTimeout(resolve, maximumWaitingTime);
+      });
+
+      return Promise.race([assetsReady, safetyTimeout]);
+    }
+
+    /*
+     * Полностью удаляем прелоадер.
+     * После события запускается Hero-анимация.
+     */
+
+    function removePreloader() {
+      if (animationFrame !== null) {
+        cancelAnimationFrame(animationFrame);
+
+        animationFrame = null;
+      }
+
+      document.documentElement.classList.remove('preloader-active');
+
+      window.preloaderFinished = true;
+
+      window.dispatchEvent(new CustomEvent('preloader:complete'));
+
+      preloader.remove();
+    }
+
+    /*
+     * Запускаем финальное раскрытие
+     * белых панелей прелоадера.
+     */
+
+    function completePreloader(animate = true) {
+      if (completionStarted) return;
+
+      completionStarted = true;
+
+      preloader.classList.remove('is-loading');
+
+      renderLogoProgress(100);
+      renderLoadingProgress(100);
+
+      if (!animate || reducedMotion) {
+        removePreloader();
+        return;
+      }
+
+      preloader.classList.add('is-complete');
+
+      window.setTimeout(removePreloader, revealDelay + revealDuration + 100);
+    }
+
+    /*
+     * Главный animation loop.
+     */
+
+    function tick(now) {
+      const elapsed = now - startedAt;
+
+      /*
+       * Логотип всегда доходит до 100%
+       * за minimumSequence.
+       */
+
+      if (!logoFinished) {
+        const logoProgress = Math.min(100, (elapsed / minimumSequence) * 100);
+
+        renderLogoProgress(logoProgress);
+
+        if (logoProgress >= 100) {
+          logoFinished = true;
+          renderLogoProgress(100);
+        }
+      }
+
+      /*
+       * Линия и число доходят только до 90%.
+       */
+
+      let loadingProgress = progressAt(Math.min(elapsed, minimumSequence));
+
+      /*
+       * После готовности Hero линия плавно
+       * доходит от 90% до 100%.
+       */
+
+      if (elapsed >= minimumSequence && pageReady) {
+        if (completingAt === null) {
+          completingAt = now;
+        }
+
+        const completionPosition = Math.min(1, (now - completingAt) / completionDuration);
+
+        loadingProgress = 90 + 10 * easeOutCubic(completionPosition);
+
+        if (completionPosition >= 1) {
+          renderLogoProgress(100);
+          renderLoadingProgress(100);
+          completePreloader(true);
+          return;
+        }
+      }
+
+      renderLoadingProgress(loadingProgress);
+
+      animationFrame = requestAnimationFrame(tick);
+    }
+
+    /*
+     * Начальные значения.
+     */
+
+    renderLogoProgress(0);
+    renderLoadingProgress(0);
+
+    /*
+     * Параллельно запускаем ожидание ресурсов Hero.
+     */
+
+    waitForHeroReady().then(() => {
+      pageReady = true;
+
+      if (reducedMotion) {
+        completePreloader(false);
+      }
+    });
+
+    /*
+     * Запускаем визуальную последовательность.
+     */
+
+    if (!reducedMotion) {
+      animationFrame = requestAnimationFrame(tick);
+    }
+  })();
+</script>

@@ -1,0 +1,121 @@
+.nav-progress-bar {
+  width: 100%;
+  max-width: 0%;
+  transition: max-width 0.08s linear;
+}
+
+.nav-menu-link {
+  opacity: 0.4;
+  background-color: rgba(255, 255, 255, 0);
+}
+
+.nav-menu-link:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.nav-menu-link:hover .nav-link-bg {
+  opacity: 1;
+}
+
+.nav-link-bg {
+  opacity: 0;
+}
+
+.nav-menu-open {
+  will-change: transform, opacity;
+}
+
+.burger-wrap_line {
+  transform-origin: center;
+  will-change: transform;
+}
+
+/* Logo */
+
+.pathtop {
+  transform: translateY(-1px);
+}
+
+.logo-wrap {
+  --logo-border-background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3rem;
+  height: 3rem;
+  padding: 0.88rem;
+  border: 0;
+  border-radius: 100px;
+}
+
+.logo-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--logo-border-background);
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+.logo-letter {
+  opacity: 0;
+  filter: blur(2px);
+  transform: translateX(8px);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.logo-letter.is-visible {
+  animation: 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards logo-path-in;
+}
+
+.logo-mark {
+  opacity: 1;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes logo-path-in {
+  0% {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateX(8px);
+  }
+  55% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateX(0);
+  }
+}
+
+.nav_logo-wrap {
+  display: inline-block;
+  position: relative;
+  z-index: 10;
+  mix-blend-mode: difference;
+  backdrop-filter: grayscale(1) contrast(10000%);
+  -webkit-backdrop-filter: grayscale(1) contrast(10000%);
+  clip-path: url(#logo-clip);
+}
+
+.nav_logo-img {
+  color: #fff !important;
+}
+
+.nav_logo-img path {
+  fill: #ffffff !important;
+}

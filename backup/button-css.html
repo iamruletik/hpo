@@ -1,0 +1,244 @@
+<style>
+  body[data-theme='dark'] {
+    --page-bg: #ffffff;
+    --border-idle: rgba(0, 0, 0, 0.12);
+    --border-active: #000000;
+    --text: #000000;
+
+    --s-text: #fff;
+    --s-bg: #1e1e1e;
+  }
+
+  body[data-theme='light'] {
+    --page-bg: #000;
+    --border-idle: rgba(255, 255, 255, 0.12);
+    --border-active: #fff;
+    --text: #fff;
+
+    --s-text: #1e1e1e;
+    --s-bg: #fff;
+  }
+
+  .button.is-secondary {
+    background: var(--s-bg);
+    color: var(--s-text);
+  }
+
+  .demo-button.is-footer {
+    color: black !important;
+  }
+
+  .demo-button.is-footer .demo-button__base {
+    stroke: rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .demo-button.is-footer .demo-button__active path {
+    stroke: #000 !important;
+  }
+
+  .demo-button.is-footer .demo-button__label {
+    color: black !important;
+  }
+
+  .demo-button {
+    position: relative;
+    width: auto;
+    height: auto;
+    padding: 1.25rem;
+    display: inline-grid;
+    place-items: center;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    text-decoration: none;
+    cursor: pointer;
+    overflow: visible;
+    isolation: isolate;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .demo-button__border {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .demo-button__base,
+  .demo-button__active path {
+    fill: none;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .demo-button__base {
+    stroke: var(--border-idle);
+    stroke-width: 1;
+  }
+
+  .demo-button__active path {
+    stroke: var(--border-active);
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 0.2 1;
+    stroke-dashoffset: 0;
+    will-change: stroke-dasharray;
+  }
+
+  .demo-button__label {
+    position: relative;
+    z-index: 1;
+    display: block;
+    height: 1em;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 0.8rem;
+    font-weight: 600;
+    line-height: 1em;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .demo-button__text {
+    display: block;
+    will-change: transform;
+  }
+
+  .demo-button__text:nth-child(2) {
+    position: absolute;
+    inset: 0;
+  }
+
+  .demo-button:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .demo-button__active path {
+      stroke-dasharray: 1 1;
+    }
+
+    .demo-button__text:nth-child(2) {
+      display: none;
+    }
+  }
+</style>
+<style>
+  /*
+   * Нужен для градиентного текста во время
+   * пересечения двух секций.
+   */
+  [data-chameleon-btn] .chameleon-text,
+  .demo-button__label {
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 100% 100%;
+  }
+
+  /*
+   * Убираем CSS-переходы цветов, иначе на границе
+   * могут появляться промежуточные оттенки.
+   */
+  [data-chameleon-btn],
+  [data-chameleon-btn] .chameleon-text,
+  .demo-button__label,
+  .demo-button__base,
+  .demo-button__active path {
+    transition-property: transform, opacity, stroke-dasharray;
+  }
+
+  .demo-button:focus-visible {
+    outline-color: currentColor;
+  }
+  .demo-button__label {
+    background-image: none !important;
+    background-clip: initial !important;
+    -webkit-background-clip: initial !important;
+    -webkit-text-fill-color: initial;
+  }
+
+  .demo-button__text {
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 100% 100%;
+
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  /*
+ * Родитель только обрезает движущиеся тексты.
+ * На нём не должно быть background-clip:text.
+ */
+  .demo-button__label {
+    background: none !important;
+    background-image: none !important;
+
+    background-clip: border-box !important;
+    -webkit-background-clip: border-box !important;
+
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  /*
+ * Градиент применяется непосредственно
+ * к каждому текстовому слою.
+ */
+  .demo-button__text {
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 100% 100%;
+
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  .button.is-secondary .chameleon-text.is-roll-label {
+    position: relative;
+    display: block;
+
+    height: 1em;
+    overflow: hidden;
+
+    line-height: 1em;
+    white-space: nowrap;
+
+    background: none !important;
+    background-image: none !important;
+
+    background-clip: border-box !important;
+    -webkit-background-clip: border-box !important;
+
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  .button.is-secondary .is-roll-label .demo-button__text {
+    display: block;
+
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 100% 100%;
+
+    will-change: transform;
+  }
+
+  .button.is-secondary .is-roll-label .demo-button__text:nth-child(2) {
+    position: absolute;
+    inset: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .button.is-secondary .is-roll-label .demo-button__text:nth-child(2) {
+      display: none;
+    }
+  }
+
+  .pathtop {
+		transform: translateY(-1px);
+    }
+</style>

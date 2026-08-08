@@ -1,0 +1,11 @@
+.cta-line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+  margin-bottom: -0.08em;
+}
+
+.cta-line {
+  display: block;
+  will-change: transform;
+}

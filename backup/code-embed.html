@@ -1,0 +1,374 @@
+<style>
+  :root {
+    --preloader-ink: #070707;
+    --preloader-paper: #ffffff;
+    --preloader-track: #d6d6d6;
+    --preloader-split: 61.95%;
+  }
+
+  html.preloader-active,
+  html.preloader-active body {
+    overflow: hidden;
+  }
+
+  .preloader {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    overflow: hidden;
+    isolation: isolate;
+    background: transparent;
+  }
+
+  /* Верхняя и нижняя белые панели */
+
+  .preloader::before,
+  .preloader::after {
+    position: absolute;
+    right: 0;
+    left: 0;
+    z-index: 0;
+    display: block;
+    background: var(--preloader-paper);
+    content: "";
+    will-change: transform;
+  }
+
+  .preloader::before {
+    top: 0;
+    height: var(--preloader-split);
+    transform-origin: top center;
+  }
+
+  .preloader::after {
+    bottom: 0;
+    height: calc(100% - var(--preloader-split));
+    transform-origin: bottom center;
+  }
+
+  /* Раскрываем Hero от линии в обе стороны */
+
+  .preloader.is-complete::before {
+    animation: preloader-panel-top 720ms 220ms
+      cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  .preloader.is-complete::after {
+    animation: preloader-panel-bottom 720ms 220ms
+      cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  .brand {
+    position: absolute;
+    top: 56.15%;
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 42px;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    will-change: opacity, transform;
+  }
+
+  .brand-logo {
+    --logo-shift: -41.6%;
+
+    width: clamp(104px, 7.14vw, 137px);
+    height: auto;
+    overflow: visible;
+    color: var(--preloader-ink);
+    transform: translateX(var(--logo-shift));
+    will-change: transform;
+  }
+
+  .logo-letter {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateX(8px);
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .logo-letter.is-visible {
+    animation: logo-path-in 180ms
+      cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .logo-mark {
+    opacity: 1;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .preloader.is-loading .logo-mark {
+    animation: mark-breathe 760ms
+      cubic-bezier(0.65, 0, 0.35, 1) both;
+  }
+
+  .track {
+    position: absolute;
+    top: var(--preloader-split);
+    left: 0;
+    z-index: 2;
+    width: 100%;
+    height: 2px;
+    overflow: hidden;
+    background: var(--preloader-track);
+    transform: translateY(-50%);
+    will-change: opacity;
+  }
+
+  .track-fill {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    background: var(--preloader-ink);
+    transform: translateX(-50%) scaleX(0);
+    transform-origin: center;
+    will-change: transform;
+  }
+
+  .progress-number {
+    position: absolute;
+    right: 0;
+    bottom: 28px;
+    left: 0;
+    z-index: 2;
+    height: 28px;
+    overflow: hidden;
+    color: var(--preloader-ink);
+    text-align: center;
+    font-size: clamp(18px, 1.06vw, 21px);
+    font-weight: 500;
+    line-height: 28px;
+    will-change: opacity, transform;
+  }
+
+  /* Скрываем элементы перед раскрытием Hero */
+
+  .preloader.is-complete .brand {
+    animation: preloader-content-exit 180ms
+      cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  .preloader.is-complete .track {
+    animation: preloader-track-exit 180ms 40ms ease forwards;
+  }
+
+  .preloader.is-complete .progress-number {
+    animation: counter-exit 220ms 20ms
+      cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  @keyframes logo-path-in {
+    0% {
+      opacity: 0;
+      filter: blur(2px);
+      transform: translateX(8px);
+    }
+
+    55% {
+      opacity: 0.62;
+    }
+
+    100% {
+      opacity: 1;
+      filter: blur(0);
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes mark-breathe {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+
+    38% {
+      transform: scale(0.84) rotate(8deg);
+    }
+
+    68% {
+      transform: scale(1.04) rotate(0);
+    }
+  }
+
+  @keyframes preloader-content-exit {
+    from {
+      opacity: 1;
+      transform: translate(-50%, -50%);
+    }
+
+    to {
+      opacity: 0;
+      transform: translate(-50%, calc(-50% - 8px));
+    }
+  }
+
+  @keyframes preloader-track-exit {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes counter-exit {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    35% {
+      transform: translateY(-5px);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(42px);
+    }
+  }
+
+  @keyframes preloader-panel-top {
+    from {
+      transform: scaleY(1);
+    }
+
+    to {
+      transform: scaleY(0);
+    }
+  }
+
+  @keyframes preloader-panel-bottom {
+    from {
+      transform: scaleY(1);
+    }
+
+    to {
+      transform: scaleY(0);
+    }
+  }
+
+  @media (max-width: 720px) {
+    :root {
+      --preloader-split: 61%;
+    }
+
+    .brand {
+      top: 55%;
+    }
+
+    .progress-number {
+      bottom: 22px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .preloader::before,
+    .preloader::after,
+    .brand,
+    .track,
+    .progress-number {
+      animation: none !important;
+    }
+
+    .brand,
+    .track,
+    .progress-number {
+      display: none;
+    }
+  }
+</style>
+
+<style>
+  .arrow-button {
+    position: relative;
+
+    width: 4rem;
+    height: 3rem;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+    color: #000;
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+
+    text-decoration: none;
+    cursor: pointer;
+    isolation: isolate;
+
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .arrow-button__border {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .arrow-button__base,
+  .arrow-button__active path {
+    fill: none;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* Постоянная неактивная рамка */
+  .arrow-button__base {
+    stroke: rgba(0, 0, 0, 0.12);
+  }
+
+  /* Чёрные анимированные части */
+  .arrow-button__active path {
+    stroke: #000;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+
+    stroke-dasharray: 0.2 1;
+    stroke-dashoffset: 0;
+
+    will-change: stroke-dasharray;
+  }
+
+  .arrow-button__icon {
+    position: relative;
+    z-index: 1;
+
+    width: 1rem;
+    height: 1rem;
+
+    display: block;
+    object-fit: contain;
+
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .arrow-button:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 5px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .arrow-button__active path {
+      stroke-dasharray: 1 1;
+    }
+  }
+</style>

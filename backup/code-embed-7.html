@@ -1,0 +1,62 @@
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+  // 1. Списки видео для разных браузеров
+  const safariVideos = [
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/safari/icon_01.mp4",
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/safari/icon_02.mp4",
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/safari/icon_03.mp4",
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/safari/icon_04.mp4"
+  ];
+
+  const googleVideos = [
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/google/icon_01.webm",
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/google/icon_02.webm",
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/google/icon_03.webm",
+    "https://storage.googleapis.com/radiance/hpo/second_sec_icon_animation/google/icon_04.webm"
+  ];
+
+  // 2. Определение браузера Safari (исключаем Chrome, так как в его userAgent тоже есть слово 'Safari')
+  const isSafari = navigator.userAgent.includes('Safari') && 
+                   !navigator.userAgent.includes('Chrome') && 
+                   !navigator.userAgent.includes('Chromium');
+
+  // Выбираем нужный массив видео
+  const videosToUse = isSafari ? safariVideos : googleVideos;
+
+  // 3. Вставка видео в элементы v-1 ... v-4
+  for (let i = 1; i <= 4; i++) {
+    const element = document.getElementById(`v-${i}`);
+    
+    if (element) {
+      // Если элемент уже является тегом <video>
+      if (element.tagName.toLowerCase() === 'video') {
+        element.src = videosToUse[i - 1];
+        element.autoplay = true;
+        element.muted = true;
+        element.loop = true;
+        element.playsInline = true; // Критически важно для Safari на iOS
+      } 
+      // Если это контейнер (например, <div>), создаем видео внутри него
+      else {
+        element.innerHTML = ''; // Очищаем контейнер на всякий случай
+        
+        const video = document.createElement('video');
+        video.src = videosToUse[i - 1];
+        video.autoplay = true;
+        video.muted = true;
+        video.loop = true;
+        video.playsInline = true; // Критически важно для Safari на iOS
+        
+        // Дополнительные стили для корректного отображения (можно убрать или изменить под ваш дизайн)
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
+        video.style.display = 'block';
+        video.style.transform = 'scale(1.6)';
+        
+        element.appendChild(video);
+      }
+    }
+  }
+});
+</script>

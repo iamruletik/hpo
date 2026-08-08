@@ -1,0 +1,254 @@
+.request-modal {
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.4);
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+}
+
+.request-modal-close-wrapper {
+  background-color: #ef5236;
+  border-radius: 50%;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  position: absolute;
+  inset: 1.25rem 1.25rem auto auto;
+  cursor: pointer;
+  transition:
+    transform 0.3s,
+    background-color 0.25s;
+}
+
+.request-modal-close-wrapper:hover {
+  background-color: #000;
+  transform: rotate(90deg);
+}
+
+.request-modal-close-wrapper:active {
+  transform: rotate(90deg) scale(0.9);
+}
+
+.request-modal-close-wrapper .image-5 {
+  width: 16px;
+  pointer-events: none;
+}
+
+.request-modal .w-form-done,
+.request-modal .w-form-fail {
+  border-radius: 1rem;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+}
+
+/* Fields */
+
+.request-modal .modal-field {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+
+.request-modal .modal-field[data-field='Company-Name'],
+.request-modal .modal-field[data-field='WorkEmail'],
+.request-modal .modal-field[data-field='Message'] {
+  grid-column: 1 / -1;
+}
+
+.request-modal .modal-field.has-value .modal-placeholder {
+  opacity: 0;
+}
+
+.request-modal .modal-field.is-invalid .modal-input {
+  color: #ef5236;
+  border-color: rgba(239, 82, 54, 0.25);
+}
+
+.request-modal .modal-field.is-invalid .modal-input:focus {
+  border-color: #ef5236;
+}
+
+.request-modal .modal-field.is-invalid .modal-placeholder {
+  color: #ef5236;
+}
+
+.request-modal .modal-field.is-invalid .modal-error {
+  display: block;
+}
+
+.request-modal .modal-input {
+  transition:
+    border-color 0.25s,
+    color 0.25s,
+    box-shadow 0.25s;
+}
+
+.request-modal .modal-input:hover {
+  border-color: rgba(0, 0, 0, 0.28);
+}
+
+.request-modal .modal-input:focus {
+  color: #000;
+  border-color: rgba(0, 0, 0, 0.48);
+  box-shadow: none;
+}
+
+.request-modal .modal-input::placeholder {
+  color: transparent;
+}
+
+.request-modal .modal-input.is-textarea {
+  display: block;
+  resize: vertical;
+  border-radius: 20px;
+  min-height: 100px;
+  height: 100px;
+  padding: 14px 16px;
+  line-height: 1.4;
+}
+
+.request-modal .modal-placeholder {
+  color: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+  top: 20px;
+  left: 16px;
+  transform: translateY(-50%);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+  line-height: 1;
+  transition:
+    opacity 0.15s,
+    color 0.2s;
+}
+
+.request-modal .modal-field[data-field='Message'] .modal-placeholder {
+  top: 14px;
+  transform: none;
+}
+
+.request-modal .modal-placeholder-star {
+  color: #ef5236;
+  font-style: normal;
+}
+
+.request-modal .modal-error {
+  color: #ef5236;
+  display: none;
+  padding: 7px 16px 0;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+/* Buttons */
+
+.request-modal .form-buttons {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.request-modal .form-cancel-button,
+.request-modal .form-send-button {
+  border: 0;
+  border-radius: 48px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  transition:
+    background-color 0.25s,
+    color 0.25s,
+    transform 0.2s,
+    opacity 0.25s;
+}
+
+.request-modal .form-cancel-button:active,
+.request-modal .form-send-button.is-active:active {
+  transform: scale(0.98);
+}
+
+.request-modal .form-cancel-button {
+  color: #000;
+  background-color: rgba(0, 0, 0, 0.12);
+  display: flex;
+  cursor: pointer;
+  user-select: none;
+}
+
+.request-modal .form-cancel-button:hover {
+  background-color: rgba(0, 0, 0, 0.17);
+}
+
+.request-modal .form-send-button {
+  color: rgba(0, 0, 0, 0.3);
+  background-color: transparent;
+  cursor: default;
+}
+
+.request-modal .form-send-button.is-active {
+  color: #fff;
+  background-color: #000;
+  cursor: pointer;
+}
+
+.request-modal .form-send-button.is-active:hover {
+  background-color: #ef5236;
+}
+
+@media screen and (max-width: 767px) {
+  .request-modal {
+    align-items: flex-end;
+    padding: 0.75rem;
+  }
+
+  .request-modal-content {
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+    border-radius: 1.5rem;
+    padding: 1.25rem;
+  }
+
+  .request-modal-upper {
+    margin-bottom: 1.5rem;
+  }
+
+  .request-modal-title {
+    padding-right: 3rem;
+    font-size: 22px;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .request-modal .form {
+    grid-template-columns: 1fr;
+  }
+
+  .request-modal .modal-field {
+    grid-column: 1 / -1;
+  }
+
+  .request-modal .form-buttons {
+    grid-template-columns: 1fr 1fr;
+    margin-top: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .request-modal *,
+  .request-modal ::before,
+  .request-modal ::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}

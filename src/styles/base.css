@@ -1,0 +1,82 @@
+html {
+  font-size: 0.8333333333333334vw;
+}
+
+@media screen and (min-width: 1920px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  html {
+    font-size: 3.9800995024875627vw;
+  }
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+}
+
+html,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Lenis smooth scroll */
+
+.lenis [data-lenis-prevent],
+.lenis [data-lenis-prevent-wheel],
+.lenis [data-lenis-prevent-touch],
+.lenis [data-lenis-prevent-vertical],
+.lenis [data-lenis-prevent-horizontal],
+.request-modal,
+.solution-modal-content {
+  overscroll-behavior: contain;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
+.lenis.lenis-autoToggle {
+  transition-property: overflow;
+  transition-duration: 1ms;
+  transition-behavior: allow-discrete;
+}
+
+/* Theme tokens (used by the chameleon buttons) */
+
+body[data-theme='dark'] {
+  --page-bg: #ffffff;
+  --border-idle: rgba(0, 0, 0, 0.12);
+  --border-active: #000000;
+  --text: #000000;
+  --s-text: #fff;
+  --s-bg: #1e1e1e;
+}
+
+body[data-theme='light'] {
+  --page-bg: #000;
+  --border-idle: rgba(255, 255, 255, 0.12);
+  --border-active: #fff;
+  --text: #fff;
+  --s-text: #1e1e1e;
+  --s-bg: #fff;
+}

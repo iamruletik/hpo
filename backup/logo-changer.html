@@ -1,0 +1,298 @@
+<style>
+  .button.is-scobes:hover .button_outline-wrap {
+    width: 50%;
+  }
+  .logo-wrap {
+    --logo-border-background: rgba(255, 255, 255, 0.12);
+
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 3rem;
+    height: 3rem;
+    padding: 0.88rem;
+
+    border: 0;
+    border-radius: 100px;
+  }
+
+  /* Динамическая обводка */
+  .logo-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+
+    padding: 1px;
+    border-radius: inherit;
+    background: var(--logo-border-background);
+
+    pointer-events: none;
+
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+
+    -webkit-mask-composite: xor;
+
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+
+    mask-composite: exclude;
+  }
+</style>
+
+<script>
+  (() => {
+    function initNavLogoTheme() {
+      const logoWrap = document.querySelector('.logo-wrap');
+      const logoSvg = document.querySelector('.logo-svg');
+      const logoPath = logoSvg?.querySelector('path');
+
+      if (!logoWrap || !logoSvg || !logoPath) {
+        console.warn('[Nav Logo] Required elements not found', {
+          logoWrap,
+          logoSvg,
+          logoPath,
+        });
+
+        return;
+      }
+
+      const SVG_NS = 'http://www.w3.org/2000/svg';
+      const GRADIENT_ID = 'navLogoGradient';
+
+      /*
+       * Удаляем ранее созданный градиент,
+       * чтобы не было дублей ID.
+       */
+      logoSvg.querySelector(`#${GRADIENT_ID}`)?.remove();
+
+      let defs = logoSvg.querySelector('defs');
+
+      if (!defs) {
+        defs = document.createElementNS(SVG_NS, 'defs');
+        logoSvg.insertBefore(defs, logoSvg.firstChild);
+      }
+
+      const gradient = document.createElementNS(SVG_NS, 'linearGradient');
+
+      gradient.setAttribute('id', GRADIENT_ID);
+      gradient.setAttribute('x1', '0%');
+      gradient.setAttribute('y1', '0%');
+      gradient.setAttribute('x2', '0%');
+      gradient.setAttribute('y2', '100%');
+
+      defs.appendChild(gradient);
+
+      /*
+       * dark означает тёмный фон:
+       * логотип должен стать белым.
+       */
+      function getLogoColor(theme) {
+        return theme === 'light' ? '#ffffff' : '#000000';
+      }
+
+      function getBorderColor(theme) {
+        return theme === 'light' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
+      }
+
+      function getTheme(element) {
+        return element?.getAttribute('data-logo-theme') || 'light';
+      }
+
+      function setSvgGradientStops(stops) {
+        gradient.replaceChildren();
+
+        stops.forEach(({ percentage, color }) => {
+          const stop = document.createElementNS(SVG_NS, 'stop');
+
+          stop.setAttribute('offset', `${percentage}%`);
+          stop.setAttribute('stop-color', color);
+
+          gradient.appendChild(stop);
+        });
+      }
+
+      function setBorderGradient(stops) {
+        const gradientStops = stops
+          .map(({ percentage, color }) => {
+            return `${color} ${percentage}%`;
+          })
+          .join(', ');
+
+        logoWrap.style.setProperty('--logo-border-background', `linear-gradient(to bottom, ${gradientStops})`);
+      }
+
+      /*
+       * Создаёт набор точек градиента относительно
+       * размеров конкретного элемента.
+       *
+       * Для SVG используется logoSvg rect.
+       * Для бордера используется logoWrap rect.
+       */
+      function createStops({ rect, overlappingElements, getColor }) {
+        const stops = [];
+
+        let currentColor = getColor(getTheme(overlappingElements[0].element));
+
+        stops.push({
+          percentage: 0,
+          color: currentColor,
+        });
+
+        for (let index = 0; index < overlappingElements.length - 1; index++) {
+          const currentElement = overlappingElements[index];
+          const nextElement = overlappingElements[index + 1];
+
+          /*
+           * Реальная граница между блоками.
+           */
+          const boundaryY = Math.min(currentElement.rect.bottom, nextElement.rect.top);
+
+          const percentage = Math.max(0, Math.min(100, ((boundaryY - rect.top) / rect.height) * 100));
+
+          /*
+           * Первый stop сохраняет старый цвет
+           * до самой границы.
+           */
+          stops.push({
+            percentage,
+            color: currentColor,
+          });
+
+          currentColor = getColor(getTheme(nextElement.element));
+
+          /*
+           * Второй stop на той же позиции
+           * создаёт резкую смену цвета.
+           */
+          stops.push({
+            percentage,
+            color: currentColor,
+          });
+        }
+
+        stops.push({
+          percentage: 100,
+          color: currentColor,
+        });
+
+        return stops;
+      }
+
+      function updateLogo() {
+        const themedElements = Array.from(document.querySelectorAll('[data-logo-theme]'));
+
+        if (!themedElements.length) {
+          logoPath.style.fill = '#000000';
+
+          logoWrap.style.setProperty('--logo-border-background', 'rgba(0, 0, 0, 0.12)');
+
+          return;
+        }
+
+        const logoRect = logoSvg.getBoundingClientRect();
+        const wrapRect = logoWrap.getBoundingClientRect();
+
+        if (logoRect.height <= 0 || wrapRect.height <= 0) {
+          return;
+        }
+
+        /*
+         * Ищем элементы, которые пересекают всю кнопку.
+         * Кнопка выше SVG, поэтому является основной зоной.
+         */
+        const overlappingElements = themedElements
+          .map((element) => ({
+            element,
+            rect: element.getBoundingClientRect(),
+          }))
+          .filter(({ rect }) => {
+            return rect.bottom > wrapRect.top && rect.top < wrapRect.bottom;
+          })
+          .sort((a, b) => a.rect.top - b.rect.top);
+
+        if (!overlappingElements.length) return;
+
+        /*
+         * Весь логотип и круг находятся над одним фоном.
+         */
+        if (overlappingElements.length === 1) {
+          const theme = getTheme(overlappingElements[0].element);
+
+          const logoColor = getLogoColor(theme);
+          const borderColor = getBorderColor(theme);
+
+          logoPath.style.fill = logoColor;
+          logoPath.setAttribute('fill', logoColor);
+
+          logoWrap.style.setProperty('--logo-border-background', borderColor);
+
+          return;
+        }
+
+        /*
+         * SVG рассчитывается относительно своих 1.25rem.
+         */
+        const svgStops = createStops({
+          rect: logoRect,
+          overlappingElements,
+          getColor: getLogoColor,
+        });
+
+        setSvgGradientStops(svgStops);
+
+        const gradientFill = `url(#${GRADIENT_ID})`;
+
+        logoPath.style.fill = gradientFill;
+        logoPath.setAttribute('fill', gradientFill);
+
+        /*
+         * Бордер рассчитывается отдельно
+         * относительно всей кнопки 3rem.
+         */
+        const borderStops = createStops({
+          rect: wrapRect,
+          overlappingElements,
+          getColor: getBorderColor,
+        });
+
+        setBorderGradient(borderStops);
+      }
+
+      let frameRequested = false;
+
+      function requestUpdate() {
+        if (frameRequested) return;
+
+        frameRequested = true;
+
+        requestAnimationFrame(() => {
+          updateLogo();
+          frameRequested = false;
+        });
+      }
+
+      window.addEventListener('scroll', requestUpdate, {
+        passive: true,
+      });
+
+      window.addEventListener('resize', requestUpdate);
+      window.addEventListener('load', requestUpdate);
+
+      requestUpdate();
+
+      setTimeout(requestUpdate, 100);
+      setTimeout(requestUpdate, 500);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initNavLogoTheme, { once: true });
+    } else {
+      initNavLogoTheme();
+    }
+  })();
+</script>

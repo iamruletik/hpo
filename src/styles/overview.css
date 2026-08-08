@@ -1,0 +1,49 @@
+.scroll-fill-text {
+  visibility: hidden;
+}
+
+.scroll-fill-text .word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.scroll-fill-text .char {
+  display: inline-block;
+  color: #bdbdbd;
+  will-change: color;
+}
+
+.overview_lower {
+  visibility: hidden;
+}
+
+.overview-word-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.overview-word {
+  display: inline-block;
+  will-change: transform;
+}
+
+.scroll-fill-line {
+  display: block;
+  overflow: hidden;
+}
+
+.scroll-fill-line-inner {
+  display: block;
+  will-change: transform;
+}
+
+@media (min-width: 1920px) {
+  .overview_left {
+    padding-top: 22.5rem;
+  }
+
+  .overview_right {
+    padding-top: 22rem;
+  }
+}

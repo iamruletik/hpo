@@ -1,0 +1,741 @@
+<script>
+  (() => {
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    /*
+     * Соответствует текущей логике логотипа:
+     *
+     * data-logo-theme="light" → белая primary-кнопка
+     * data-logo-theme="dark"  → чёрная primary-кнопка
+     */
+    const COLORS = {
+      light: {
+        primaryText: '#ffffff',
+        primaryIdleBorder: 'rgba(255, 255, 255, 0.12)',
+        primaryActiveBorder: '#ffffff',
+
+        secondaryText: '#1e1e1e',
+        secondaryBackground: '#ffffff'
+      },
+
+      dark: {
+        primaryText: '#000000',
+        primaryIdleBorder: 'rgba(0, 0, 0, 0.12)',
+        primaryActiveBorder: '#000000',
+
+        secondaryText: '#ffffff',
+        secondaryBackground: '#1e1e1e'
+      }
+    };
+
+    function getTheme(element) {
+      const theme = element?.getAttribute('data-logo-theme');
+
+      return theme === 'dark' ? 'dark' : 'light';
+    }
+
+    function getColor(theme, type) {
+      return COLORS[theme]?.[type] ?? COLORS.light[type];
+    }
+
+    /*
+     * Создание SVG-градиента.
+     *
+     * gradientUnits="userSpaceOnUse" важен:
+     * все четыре path используют одну систему координат SVG,
+     * поэтому граница цвета совпадает на всех участках обводки.
+     */
+    function createSvgGradient(svg, id) {
+      let defs = svg.querySelector('defs');
+
+      if (!defs) {
+        defs = document.createElementNS(SVG_NS, 'defs');
+        svg.insertBefore(defs, svg.firstChild);
+      }
+
+      const previousGradient = svg.querySelector(`#${id}`);
+
+      if (previousGradient) {
+        previousGradient.remove();
+      }
+
+      const gradient = document.createElementNS(
+        SVG_NS,
+        'linearGradient'
+      );
+
+      const viewBox = svg.viewBox?.baseVal;
+
+      const minY = viewBox?.y ?? 0;
+      const height = viewBox?.height || 57;
+
+      gradient.setAttribute('id', id);
+      gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+
+      gradient.setAttribute('x1', '0');
+      gradient.setAttribute('y1', String(minY));
+      gradient.setAttribute('x2', '0');
+      gradient.setAttribute('y2', String(minY + height));
+
+      defs.appendChild(gradient);
+
+      return gradient;
+    }
+
+    function setSvgGradientStops(gradient, stops) {
+      gradient.replaceChildren();
+
+      stops.forEach(({ percentage, color }) => {
+        const stop = document.createElementNS(SVG_NS, 'stop');
+
+        stop.setAttribute('offset', `${percentage}%`);
+        stop.setAttribute('stop-color', color);
+
+        gradient.appendChild(stop);
+      });
+    }
+
+    /*
+     * Формирует резкую границу без промежуточных оттенков.
+     *
+     * Два stop на одной позиции:
+     * старый цвет → новый цвет.
+     */
+    function createStops({
+      rect,
+      overlappingElements,
+      colorType
+    }) {
+      if (!rect || rect.height <= 0 || !overlappingElements.length) {
+        return [];
+      }
+
+      const stops = [];
+
+      let currentTheme = getTheme(
+        overlappingElements[0].element
+      );
+
+      let currentColor = getColor(
+        currentTheme,
+        colorType
+      );
+
+      stops.push({
+        percentage: 0,
+        color: currentColor
+      });
+
+      for (
+        let index = 0;
+        index < overlappingElements.length - 1;
+        index++
+      ) {
+        const currentElement = overlappingElements[index];
+        const nextElement = overlappingElements[index + 1];
+
+        /*
+         * Определяем настоящую границу между секциями.
+         */
+        const boundaryY = Math.min(
+          currentElement.rect.bottom,
+          nextElement.rect.top
+        );
+
+        const rawPercentage =
+          ((boundaryY - rect.top) / rect.height) * 100;
+
+        const percentage = Math.max(
+          0,
+          Math.min(100, rawPercentage)
+        );
+
+        /*
+         * Сохраняем предыдущий цвет до границы.
+         */
+        stops.push({
+          percentage,
+          color: currentColor
+        });
+
+        currentTheme = getTheme(nextElement.element);
+
+        currentColor = getColor(
+          currentTheme,
+          colorType
+        );
+
+        /*
+         * Новый цвет начинается на той же позиции.
+         */
+        stops.push({
+          percentage,
+          color: currentColor
+        });
+      }
+
+      stops.push({
+        percentage: 100,
+        color: currentColor
+      });
+
+      return stops;
+    }
+
+    function createCssGradient(stops) {
+      if (!stops.length) {
+        return 'none';
+      }
+
+      const value = stops
+        .map(({ percentage, color }) => {
+          return `${color} ${percentage}%`;
+        })
+        .join(', ');
+
+      return `linear-gradient(to bottom, ${value})`;
+    }
+
+    function setTextSolid(element, color) {
+      if (!element) return;
+
+      element.style.backgroundImage = 'none';
+      element.style.backgroundRepeat = '';
+      element.style.backgroundPosition = '';
+      element.style.backgroundSize = '';
+
+      element.style.backgroundClip = '';
+      element.style.webkitBackgroundClip = '';
+
+      element.style.color = color;
+      element.style.webkitTextFillColor = color;
+    }
+
+    function setTextGradient(element, stops) {
+      if (!element || !stops.length) return;
+
+      const gradient = createCssGradient(stops);
+
+      element.style.backgroundImage = gradient;
+      element.style.backgroundRepeat = 'no-repeat';
+      element.style.backgroundPosition = '0 0';
+      element.style.backgroundSize = '100% 100%';
+
+      element.style.backgroundClip = 'text';
+      element.style.webkitBackgroundClip = 'text';
+
+      element.style.color = 'transparent';
+      element.style.webkitTextFillColor = 'transparent';
+    }
+
+    function findOverlappingElements(
+      buttonRect,
+      themedElements
+    ) {
+      const overlapping = themedElements
+        .map((element) => ({
+          element,
+          rect: element.getBoundingClientRect()
+        }))
+        .filter(({ rect }) => {
+          return (
+            rect.bottom > buttonRect.top &&
+            rect.top < buttonRect.bottom
+          );
+        })
+        .sort((a, b) => {
+          return a.rect.top - b.rect.top;
+        });
+
+      if (overlapping.length) {
+        return overlapping;
+      }
+
+      /*
+       * Если между секциями случайно есть небольшой промежуток,
+       * выбираем ближайшую секцию, чтобы кнопка не сохраняла
+       * устаревший цвет.
+       */
+      const buttonCenter =
+        buttonRect.top + buttonRect.height / 2;
+
+      const closest = themedElements
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+
+          let distance = 0;
+
+          if (buttonCenter < rect.top) {
+            distance = rect.top - buttonCenter;
+          } else if (buttonCenter > rect.bottom) {
+            distance = buttonCenter - rect.bottom;
+          }
+
+          return {
+            element,
+            rect,
+            distance
+          };
+        })
+        .sort((a, b) => {
+          return a.distance - b.distance;
+        })[0];
+
+      return closest ? [closest] : [];
+    }
+
+    function createDemoButtonState(button, index) {
+      const svg = button.querySelector(
+        '.demo-button__border'
+      );
+
+      const base = button.querySelector(
+        '.demo-button__base'
+      );
+
+      const activePaths = Array.from(
+        button.querySelectorAll(
+          '.demo-button__active path'
+        )
+      );
+
+      const label = button.querySelector(
+        '.demo-button__label'
+      );
+
+      if (
+        !svg ||
+        !base ||
+        !activePaths.length ||
+        !label
+      ) {
+        console.warn(
+          '[Chameleon Buttons] Неправильная структура demo-button',
+          button
+        );
+
+        return null;
+      }
+
+      /*
+       * Исправляем неправильный preserveapectratio="0".
+       */
+      svg.removeAttribute('preserveapectratio');
+      svg.setAttribute('preserveAspectRatio', 'none');
+
+      const baseGradientId =
+        `chameleonButtonBase-${index}`;
+
+      const activeGradientId =
+        `chameleonButtonActive-${index}`;
+
+      const baseGradient = createSvgGradient(
+        svg,
+        baseGradientId
+      );
+
+      const activeGradient = createSvgGradient(
+        svg,
+        activeGradientId
+      );
+
+      return {
+        type: 'demo',
+        button,
+        svg,
+        base,
+        activePaths,
+        label,
+        baseGradient,
+        activeGradient,
+        baseGradientId,
+        activeGradientId
+      };
+    }
+
+    function createSecondaryButtonState(button) {
+      const text =
+        button.querySelector('.chameleon-text') ||
+        button;
+
+      return {
+        type: 'secondary',
+        button,
+        text
+      };
+    }
+
+    function updateDemoButton(
+      state,
+      overlappingElements
+    ) {
+      const {
+        button,
+        svg,
+        base,
+        activePaths,
+        label,
+        baseGradient,
+        activeGradient,
+        baseGradientId,
+        activeGradientId
+      } = state;
+
+      const svgRect = svg.getBoundingClientRect();
+      const labelRect = label.getBoundingClientRect();
+
+      if (
+        svgRect.height <= 0 ||
+        labelRect.height <= 0
+      ) {
+        return;
+      }
+
+      /*
+       * Весь элемент находится над одной секцией.
+       */
+      if (overlappingElements.length === 1) {
+        const theme = getTheme(
+          overlappingElements[0].element
+        );
+
+        const textColor = getColor(
+          theme,
+          'primaryText'
+        );
+
+        const idleBorderColor = getColor(
+          theme,
+          'primaryIdleBorder'
+        );
+
+        const activeBorderColor = getColor(
+          theme,
+          'primaryActiveBorder'
+        );
+
+        setTextSolid(label, textColor);
+
+        button.style.color = textColor;
+
+        base.style.stroke = idleBorderColor;
+        base.setAttribute(
+          'stroke',
+          idleBorderColor
+        );
+
+        activePaths.forEach((path) => {
+          path.style.stroke = activeBorderColor;
+
+          path.setAttribute(
+            'stroke',
+            activeBorderColor
+          );
+        });
+
+        return;
+      }
+
+      /*
+       * Текст рассчитывается относительно реальной
+       * высоты текстового контейнера.
+       */
+      const textStops = createStops({
+        rect: labelRect,
+        overlappingElements,
+        colorType: 'primaryText'
+      });
+
+      setTextGradient(label, textStops);
+
+      /*
+       * Базовая обводка.
+       */
+      const baseStops = createStops({
+        rect: svgRect,
+        overlappingElements,
+        colorType: 'primaryIdleBorder'
+      });
+
+      setSvgGradientStops(
+        baseGradient,
+        baseStops
+      );
+
+      const baseStroke =
+        `url(#${baseGradientId})`;
+
+      base.style.stroke = baseStroke;
+      base.setAttribute('stroke', baseStroke);
+
+      /*
+       * Активная hover-обводка.
+       *
+       * Скрипт hover-анимации меняет только
+       * stroke-dasharray, поэтому конфликта нет.
+       */
+      const activeStops = createStops({
+        rect: svgRect,
+        overlappingElements,
+        colorType: 'primaryActiveBorder'
+      });
+
+      setSvgGradientStops(
+        activeGradient,
+        activeStops
+      );
+
+      const activeStroke =
+        `url(#${activeGradientId})`;
+
+      activePaths.forEach((path) => {
+        path.style.stroke = activeStroke;
+        path.setAttribute('stroke', activeStroke);
+      });
+    }
+
+    function updateSecondaryButton(
+      state,
+      overlappingElements
+    ) {
+      const { button, text } = state;
+
+      const buttonRect =
+        button.getBoundingClientRect();
+
+      const textRect =
+        text.getBoundingClientRect();
+
+      if (
+        buttonRect.height <= 0 ||
+        textRect.height <= 0
+      ) {
+        return;
+      }
+
+      /*
+       * Кнопка полностью находится над одной секцией.
+       */
+      if (overlappingElements.length === 1) {
+        const theme = getTheme(
+          overlappingElements[0].element
+        );
+
+        const backgroundColor = getColor(
+          theme,
+          'secondaryBackground'
+        );
+
+        const textColor = getColor(
+          theme,
+          'secondaryText'
+        );
+
+        button.style.background = backgroundColor;
+
+        setTextSolid(text, textColor);
+
+        button.style.color = textColor;
+
+        return;
+      }
+
+      /*
+       * Заливка рассчитывается относительно всей кнопки.
+       */
+      const backgroundStops = createStops({
+        rect: buttonRect,
+        overlappingElements,
+        colorType: 'secondaryBackground'
+      });
+
+      button.style.background =
+        createCssGradient(backgroundStops);
+
+      /*
+       * Текст рассчитывается отдельно относительно
+       * своего реального положения внутри кнопки.
+       */
+      const textStops = createStops({
+        rect: textRect,
+        overlappingElements,
+        colorType: 'secondaryText'
+      });
+
+      setTextGradient(text, textStops);
+    }
+
+    function initChameleonButtons() {
+      const buttons = Array.from(
+        document.querySelectorAll(
+          '[data-chameleon-btn]'
+        )
+      );
+
+      if (!buttons.length) {
+        console.warn(
+          '[Chameleon Buttons] Кнопки не найдены'
+        );
+
+        return;
+      }
+
+      const states = buttons
+        .map((button, index) => {
+          /*
+           * Footer-версия имеет принудительно
+           * чёрные стили с !important.
+           */
+          if (button.classList.contains('is-footer')) {
+            return null;
+          }
+
+          if (
+            button.classList.contains('demo-button')
+          ) {
+            return createDemoButtonState(
+              button,
+              index
+            );
+          }
+
+          if (
+            button.classList.contains('is-secondary')
+          ) {
+            return createSecondaryButtonState(
+              button
+            );
+          }
+
+          console.warn(
+            '[Chameleon Buttons] Неизвестный тип кнопки',
+            button
+          );
+
+          return null;
+        })
+        .filter(Boolean);
+
+      if (!states.length) {
+        return;
+      }
+
+      function updateButtons() {
+        const themedElements = Array.from(
+          document.querySelectorAll(
+            '[data-logo-theme]'
+          )
+        );
+
+        if (!themedElements.length) {
+          return;
+        }
+
+        states.forEach((state) => {
+          const buttonRect =
+            state.button.getBoundingClientRect();
+
+          if (
+            buttonRect.width <= 0 ||
+            buttonRect.height <= 0
+          ) {
+            return;
+          }
+
+          const overlappingElements =
+            findOverlappingElements(
+              buttonRect,
+              themedElements
+            );
+
+          if (!overlappingElements.length) {
+            return;
+          }
+
+          if (state.type === 'demo') {
+            updateDemoButton(
+              state,
+              overlappingElements
+            );
+          } else {
+            updateSecondaryButton(
+              state,
+              overlappingElements
+            );
+          }
+        });
+      }
+
+      let frameRequested = false;
+
+      function requestUpdate() {
+        if (frameRequested) return;
+
+        frameRequested = true;
+
+        requestAnimationFrame(() => {
+          updateButtons();
+          frameRequested = false;
+        });
+      }
+
+      window.addEventListener(
+        'scroll',
+        requestUpdate,
+        {
+          passive: true
+        }
+      );
+
+      window.addEventListener(
+        'resize',
+        requestUpdate
+      );
+
+      window.addEventListener(
+        'load',
+        requestUpdate
+      );
+
+      /*
+       * Поддержка GSAP ScrollTrigger.
+       */
+      if (window.ScrollTrigger) {
+        ScrollTrigger.addEventListener(
+          'refresh',
+          requestUpdate
+        );
+
+        ScrollTrigger.addEventListener(
+          'scrollEnd',
+          requestUpdate
+        );
+      }
+
+      /*
+       * Повторный расчёт после загрузки шрифтов.
+       */
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(requestUpdate);
+      }
+
+      requestUpdate();
+
+      setTimeout(requestUpdate, 100);
+      setTimeout(requestUpdate, 500);
+      setTimeout(requestUpdate, 1000);
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener(
+        'DOMContentLoaded',
+        initChameleonButtons,
+        {
+          once: true
+        }
+      );
+    } else {
+      initChameleonButtons();
+    }
+  })();
+</script>

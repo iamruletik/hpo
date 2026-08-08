@@ -1,0 +1,46 @@
+.hero_big-title,
+.hero_copy-text {
+  visibility: hidden;
+  overflow: visible !important;
+}
+
+.hero_big-title {
+  line-height: 0.95;
+}
+
+.hero_copy-text {
+  line-height: 1.25;
+}
+
+.lottie-json canvas {
+  transform: scale(1.77) translate(-20%, -25%);
+}
+
+.line-mask {
+  display: block;
+  overflow: hidden;
+  padding-top: 0em;
+  padding-bottom: 0.16em;
+  margin-top: -0.12em;
+  margin-bottom: -0.16em;
+}
+
+.line {
+  display: block;
+  opacity: 1;
+  will-change: transform;
+}
+
+.hero-background-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scroll-down-wrap:hover .scroll-down-icon {
+  transform: translateY(150%);
+}
+
+.scroll-down-wrap.is-f:hover .scroll-down-icon {
+  transform: translateY(-150%);
+}

@@ -1,0 +1,177 @@
+import { gsap, ScrollTrigger, Draggable } from '../core/gsap.js';
+
+function clamp(min, max, value) {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function initTimeline() {
+  const section = document.querySelector('[data-component="history"]');
+  if (!section) return;
+
+  const wrapper = section.querySelector('.history_timeline-wrapper');
+  const track = section.querySelector('.history_track');
+  const dragCursor = section.querySelector('.history_drag-cursor');
+  const innerCursor = section.querySelector('.history_inner-cursor');
+  const progressBar = section.querySelector('.history_progress');
+  const prevButton = section.querySelector('.history_prev');
+  const nextButton = section.querySelector('.history_next');
+
+  if (!wrapper || !track || !dragCursor || !innerCursor || !progressBar) return;
+
+  let draggable = null;
+  let maxDrag = 0;
+  let itemWidth = 0;
+  let progress = 0;
+  let cursorX = null;
+  let cursorY = null;
+
+  function updateButtons() {
+    if (!prevButton || !nextButton) return;
+    const canDrag = maxDrag > 0;
+    prevButton.disabled = !canDrag || progress <= 0.001;
+    nextButton.disabled = !canDrag || progress >= 0.999;
+  }
+
+  function updateProgress() {
+    if (maxDrag === 0) {
+      progress = 0;
+      gsap.set(progressBar, { width: '0%' });
+      updateButtons();
+      return;
+    }
+
+    const currentX = gsap.getProperty(track, 'x') || 0;
+    progress = clamp(0, 1, -currentX / maxDrag);
+    gsap.set(progressBar, { width: `${progress * 100}%` });
+    updateButtons();
+  }
+
+  function calculateSizes() {
+    const wrapperWidth = wrapper.clientWidth;
+    const trackWidth = track.scrollWidth;
+    maxDrag = Math.max(0, trackWidth - wrapperWidth);
+
+    const firstItem = track.querySelector('.history_item');
+    itemWidth = Math.round(firstItem ? firstItem.getBoundingClientRect().width : wrapperWidth / 3);
+
+    const currentX = gsap.getProperty(track, 'x') || 0;
+    const safeX = clamp(-maxDrag, 0, currentX);
+    gsap.set(track, { x: safeX });
+
+    updateProgress();
+
+    draggable?.applyBounds({ minX: -maxDrag, maxX: 0 });
+
+    section.style.setProperty('--history-height', `${section.offsetHeight - 1}px`);
+  }
+
+  function moveCursor() {
+    if (cursorX === null || cursorY === null) return;
+    const bounds = wrapper.getBoundingClientRect();
+    gsap.set(dragCursor, { x: cursorX - bounds.left, y: cursorY - bounds.top });
+  }
+
+  function onPointerMove(event) {
+    const touch = event.touches && event.touches[0];
+    cursorX = event.clientX || (touch && touch.clientX);
+    cursorY = event.clientY || (touch && touch.clientY);
+    if (cursorX === undefined || cursorY === undefined) return;
+    moveCursor();
+  }
+
+  function showCursor(event) {
+    const touch = event && event.touches && event.touches[0];
+    cursorX = (event && event.clientX) || (touch && touch.clientX) || cursorX;
+    cursorY = (event && event.clientY) || (touch && touch.clientY) || cursorY;
+    moveCursor();
+
+    gsap.to(innerCursor, { autoAlpha: 1, scale: 1, duration: 0.15, overwrite: true });
+  }
+
+  function hideCursor() {
+    gsap.to(innerCursor, { autoAlpha: 0, scale: 0, duration: 0.2, overwrite: true });
+  }
+
+  function setInitialCards() {
+    const firstCards = Array.from(track.querySelectorAll('.history_item')).slice(0, 3);
+    if (!firstCards.length) return;
+    gsap.set(firstCards, { x: 120, opacity: 0 });
+  }
+
+  function revealInitialCards() {
+    const firstCards = Array.from(track.querySelectorAll('.history_item')).slice(0, 3);
+    if (!firstCards.length) return;
+    gsap.to(firstCards, { duration: 0.9, stagger: 0.1, x: 0, opacity: 1, ease: 'power3.out', overwrite: 'auto' });
+  }
+
+  function slideBy(direction) {
+    const currentX = gsap.getProperty(track, 'x') || 0;
+    const nextX = clamp(-maxDrag, 0, currentX - direction * itemWidth);
+
+    gsap.to(track, {
+      x: nextX,
+      duration: 0.6,
+      ease: 'power3.inOut',
+      onUpdate: updateProgress,
+      onComplete: updateProgress,
+      overwrite: true,
+    });
+  }
+
+  function createDraggable() {
+    draggable?.kill();
+
+    draggable = Draggable.create(track, {
+      type: 'x',
+      inertia: true,
+      bounds: { minX: -maxDrag, maxX: 0 },
+      edgeResistance: 0.85,
+      onDrag: updateProgress,
+      onThrowUpdate: updateProgress,
+      onPress() {
+        gsap.to(dragCursor, { scale: 0.9, duration: 0.2, overwrite: true });
+      },
+      onRelease() {
+        gsap.to(dragCursor, { scale: 1, duration: 0.2, overwrite: true });
+      },
+    })[0];
+  }
+
+  function initHistory() {
+    calculateSizes();
+    setInitialCards();
+
+    ScrollTrigger.create({
+      trigger: section,
+      start: 'top 60%',
+      toggleActions: 'play none none none',
+      once: true,
+      onEnter: revealInitialCards,
+    });
+
+    createDraggable();
+
+    track.addEventListener('pointermove', onPointerMove);
+    track.addEventListener('pointerenter', showCursor);
+    track.addEventListener('pointerleave', hideCursor);
+
+    window.addEventListener('scroll', moveCursor, { passive: true });
+    document.addEventListener('scroll', moveCursor, { passive: true, capture: true });
+
+    prevButton?.addEventListener('click', () => slideBy(-1));
+    nextButton?.addEventListener('click', () => slideBy(1));
+
+    updateButtons();
+  }
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      calculateSizes();
+      ScrollTrigger.refresh();
+    }, 150);
+  });
+
+  initHistory();
+}

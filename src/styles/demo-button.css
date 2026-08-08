@@ -1,0 +1,158 @@
+.demo-button {
+  position: relative;
+  width: auto;
+  height: auto;
+  padding: 1.25rem;
+  display: inline-grid;
+  place-items: center;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: visible;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.demo-button:focus-visible {
+  outline: currentColor solid 2px;
+  outline-offset: 6px;
+}
+
+.demo-button.is-footer,
+.demo-button.is-footer .demo-button__label {
+  color: #000 !important;
+}
+
+.demo-button.is-footer .demo-button__base {
+  stroke: rgba(0, 0, 0, 0.12) !important;
+}
+
+.demo-button.is-footer .demo-button__active path {
+  stroke: #000 !important;
+}
+
+.demo-button__border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.demo-button__base,
+.demo-button__active path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  transition-property: transform, opacity, stroke-dasharray;
+}
+
+.demo-button__base {
+  stroke: var(--border-idle);
+  stroke-width: 1;
+}
+
+.demo-button__active path {
+  stroke: var(--border-active);
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 0.2 1;
+  stroke-dashoffset: 0;
+  will-change: stroke-dasharray;
+}
+
+.demo-button__label,
+.button.is-secondary .chameleon-text.is-roll-label {
+  white-space: nowrap;
+  line-height: 1em;
+  position: relative;
+  height: 1em;
+  overflow: hidden;
+}
+
+.demo-button__label {
+  z-index: 1;
+  display: block;
+  color: inherit !important;
+  font-size: 0.8rem;
+  font-weight: 600;
+  pointer-events: none;
+  background: none !important;
+  background-image: none !important;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 100% 100%;
+  background-clip: border-box !important;
+  -webkit-background-clip: border-box !important;
+  -webkit-text-fill-color: currentColor !important;
+  transition-property: transform, opacity, stroke-dasharray;
+}
+
+.demo-button__text {
+  display: block;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 100% 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  will-change: transform;
+}
+
+.demo-button__text:nth-child(2),
+.button.is-secondary .is-roll-label .demo-button__text:nth-child(2) {
+  position: absolute;
+  inset: 0;
+}
+
+.button.is-secondary .chameleon-text.is-roll-label {
+  display: block;
+  background: none !important;
+  background-image: none !important;
+  background-clip: border-box !important;
+  -webkit-background-clip: border-box !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.button.is-secondary .is-roll-label .demo-button__text {
+  display: block;
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 100% 100%;
+  will-change: transform;
+}
+
+.button.is-secondary {
+  background: var(--s-bg);
+  color: var(--s-text);
+}
+
+.button.is-scobes:hover .button_outline-wrap {
+  width: 50%;
+}
+
+[data-chameleon-btn],
+[data-chameleon-btn] .chameleon-text {
+  transition-property: transform, opacity, stroke-dasharray;
+}
+
+[data-chameleon-btn] .chameleon-text {
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 100% 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-button__active path {
+    stroke-dasharray: 1 1;
+  }
+
+  .demo-button__text:nth-child(2),
+  .button.is-secondary .is-roll-label .demo-button__text:nth-child(2) {
+    display: none;
+  }
+}

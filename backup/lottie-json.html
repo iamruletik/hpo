@@ -1,0 +1,238 @@
+<div class="foot-icon-anim" data-foot-animation>
+  <!-- Первое reveal-видео -->
+  <video
+    class="foot-icon-video is-reveal"
+    muted
+    playsinline
+    preload="none"
+    aria-hidden="true"
+    disablepictureinpicture
+  ></video>
+
+  <!-- Последующий бесконечный loop -->
+  <video
+    class="foot-icon-video is-loop"
+    muted
+    loop
+    playsinline
+    preload="none"
+    aria-hidden="true"
+    disablepictureinpicture
+  ></video>
+</div>
+
+<style>
+  .foot-icon-anim {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  .foot-icon-video {
+    position: absolute;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    display: block;
+    object-fit: contain;
+    background: transparent;
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .foot-icon-video.is-active {
+    opacity: 1;
+    visibility: visible;
+  }
+</style>
+
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!window.gsap || !window.ScrollTrigger) {
+      console.warn('GSAP или ScrollTrigger не подключён');
+      return;
+    }
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    const animations = gsap.utils.toArray('[data-foot-animation]');
+
+    if (!animations.length) return;
+
+    const userAgent = navigator.userAgent;
+
+    const isIOS =
+      /iPad|iPhone|iPod/i.test(userAgent) ||
+      (
+        navigator.platform === 'MacIntel' &&
+        navigator.maxTouchPoints > 1
+      );
+
+    const isSafari =
+      /Safari/i.test(userAgent) &&
+      !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|FxiOS/i.test(userAgent);
+
+    const useMP4 = isSafari || isIOS;
+
+    const videoSources = {
+      reveal: useMP4
+        ? 'https://storage.googleapis.com/radiance/hpo/icon_anim_foot.mp4'
+        : 'https://storage.googleapis.com/radiance/hpo/icon_anim_foot.webm',
+
+      loop: useMP4
+        ? 'https://storage.googleapis.com/radiance/hpo/icon_anim_foot-loop.mp4'
+        : 'https://storage.googleapis.com/radiance/hpo/icon_anim_foot-loop.webm'
+    };
+
+    animations.forEach((wrapper) => {
+      const revealVideo = wrapper.querySelector(
+        '.foot-icon-video.is-reveal'
+      );
+
+      const loopVideo = wrapper.querySelector(
+        '.foot-icon-video.is-loop'
+      );
+
+      if (!revealVideo || !loopVideo) return;
+
+      let hasStarted = false;
+      let hasSwitchedToLoop = false;
+      let scrollTrigger;
+
+      function showVideo(activeVideo, inactiveVideo) {
+        gsap.set(activeVideo, {
+          autoAlpha: 1
+        });
+
+        gsap.set(inactiveVideo, {
+          autoAlpha: 0
+        });
+      }
+
+      function switchToLoop() {
+        if (hasSwitchedToLoop) return;
+
+        hasSwitchedToLoop = true;
+
+        function playLoop() {
+          loopVideo.currentTime = 0;
+
+          const playPromise = loopVideo.play();
+
+          if (playPromise) {
+            playPromise
+              .then(() => {
+                showVideo(loopVideo, revealVideo);
+                revealVideo.pause();
+              })
+              .catch(() => {
+                showVideo(loopVideo, revealVideo);
+              });
+          } else {
+            showVideo(loopVideo, revealVideo);
+            revealVideo.pause();
+          }
+        }
+
+        if (loopVideo.readyState >= 2) {
+          playLoop();
+        } else {
+          loopVideo.addEventListener('canplay', playLoop, {
+            once: true
+          });
+
+          loopVideo.load();
+        }
+      }
+
+      function startAnimation() {
+        if (hasStarted) return;
+
+        hasStarted = true;
+
+        /*
+         * После первого запуска ScrollTrigger больше не нужен.
+         * Это также предотвращает повтор reveal-анимации.
+         */
+        if (scrollTrigger) {
+          scrollTrigger.kill();
+        }
+
+        revealVideo.src = videoSources.reveal;
+        loopVideo.src = videoSources.loop;
+
+        revealVideo.loop = false;
+        loopVideo.loop = true;
+
+        revealVideo.load();
+
+        /*
+         * Loop начинает загружаться одновременно с reveal,
+         * чтобы переход был без пустого кадра.
+         */
+        loopVideo.load();
+
+        showVideo(revealVideo, loopVideo);
+
+        revealVideo.currentTime = 0;
+
+        const playPromise = revealVideo.play();
+
+        if (playPromise) {
+          playPromise.catch((error) => {
+            console.warn('Reveal-видео не запустилось:', error);
+          });
+        }
+      }
+
+      revealVideo.addEventListener('ended', switchToLoop);
+
+      /*
+       * Запасной вариант для Safari:
+       * переключает видео незадолго до самого конца,
+       * если ended сработает с задержкой.
+       */
+      revealVideo.addEventListener('timeupdate', () => {
+        if (
+          hasSwitchedToLoop ||
+          !Number.isFinite(revealVideo.duration) ||
+          revealVideo.duration <= 0
+        ) {
+          return;
+        }
+
+        const remaining =
+          revealVideo.duration - revealVideo.currentTime;
+
+        if (remaining <= 0.04) {
+          switchToLoop();
+        }
+      });
+
+      scrollTrigger = ScrollTrigger.create({
+        trigger: wrapper,
+
+        /*
+         * Запуск, когда верх элемента достигнет 85% viewport.
+         * Например:
+         * "top 100%" — элемент только появился снизу;
+         * "top 80%" — элемент немного вошёл в экран;
+         * "top center" — элемент дошёл до центра.
+         */
+        start: 'top 85%',
+
+        onEnter: startAnimation,
+        onEnterBack: startAnimation,
+
+        markers: false,
+        invalidateOnRefresh: true
+      });
+    });
+  });
+</script>
