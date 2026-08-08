@@ -4,24 +4,23 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { ScrollTrigger } from '../core/gsap.js';
 
-// NOTE: modelUrl/hdrUrl/backgroundUrl/glowUrl below are root-relative
-// placeholders ("/assets/...") from the original site and do not resolve on
-// this deployment (GitHub Pages under /hpo/, not domain root). Override them
-// via window.EMPIRIOX_FOOTER_CONFIG with real hosted URLs (e.g. Google Cloud
-// Storage, same pattern used for the other videos on this site) before the
-// 3D model/HDRI will actually render. Model loading fails safe if these are
-// wrong — canvas hides, HTML footer stays usable. backgroundVideoUrl is
-// deliberately NOT in that list — see its own comment below.
+// modelUrl/hdrUrl point at public/model.glb and public/hdri.exr, served
+// from this deployment's own base path (Vite copies public/ verbatim to
+// dist/ — BASE_URL resolves correctly in both dev, "/", and the GitHub
+// Pages build, "/hpo/"). Model loading still fails safe if these are ever
+// wrong — canvas hides, HTML footer stays usable.
 const DEFAULT_CONFIG = {
-  modelUrl: '/assets/model.glb',
-  hdrUrl: '/assets/hdri.exr',
-  // Empty, not a placeholder path: the footer video's <source> already has a
-  // real, working URL in the markup. setupBackgroundVideo() only overwrites
-  // it when this is truthy, so leaving it unset preserves the existing
-  // source instead of clobbering it with a dead default on every load.
+  modelUrl: `${import.meta.env.BASE_URL}model.glb`,
+  hdrUrl: `${import.meta.env.BASE_URL}hdri.exr`,
+  // Empty, not placeholder paths: the footer video's <source> already has a
+  // real, working URL in the markup, and there's no fallback background
+  // image at all — both defaulted to a dead "/assets/..." path that 404s on
+  // every load until a real URL is supplied via config. Leaving these unset
+  // means no background-image/no source-overwrite happens until then,
+  // instead of requesting a file that doesn't exist.
   backgroundVideoUrl: '',
-  backgroundUrl: '/assets/bg_grad.png',
-  glowUrl: '/assets/bg_grad.png',
+  backgroundUrl: '',
+  glowUrl: '',
   cameraFov: 24,
   cameraZ: 6,
   modelScale: 0.93,
