@@ -1,7 +1,6 @@
 import './style.css';
 import { initPreloader } from './modules/preloader.js';
 import { initLenis } from './core/lenis.js';
-import { initHeroVideoCrossfade } from './modules/hero-video-crossfade.js';
 import { initHeroVideoParallax } from './modules/hero-video-parallax.js';
 import { initHeroTextSplit } from './modules/hero-text-split.js';
 import { initTitleLineReveal } from './modules/title-line-reveal.js';
@@ -24,12 +23,9 @@ import { initNavProgress } from './modules/nav-progress.js';
 import { initCtaReveal } from './modules/cta-reveal.js';
 import { initOverviewReveal } from './modules/overview-reveal.js';
 import { initBodyThemeScroll } from './modules/body-theme-scroll.js';
-// TEMPORARY — remove this import + call below once done previewing.
-import { initHeroShaderPreview } from './modules/hero-shader-preview.js';
 
 initPreloader();
 initLenis();
-initHeroVideoCrossfade();
 initHeroVideoParallax();
 initHeroTextSplit();
 initTitleLineReveal();
@@ -51,5 +47,4 @@ initEveryChamberReveal();
 initNavProgress();
 initCtaReveal();
 initOverviewReveal();
-initBodyThemeScroll();
-initHeroShaderPreview(); // TEMPORARY
+//initBodyThemeScroll();

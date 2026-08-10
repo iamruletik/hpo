@@ -1,4 +1,5 @@
 .hero_big-title,
+.hero_title-badge,
 .hero_copy-text {
   visibility: hidden;
   overflow: visible !important;
@@ -37,10 +38,21 @@
   object-fit: cover;
 }
 
+/* Webflow ships this at opacity:0, expecting a scroll-scrubbed crossfade
+   from the hero video that isn't there anymore — just show it. */
+.aim_video-wrapper {
+  opacity: 1;
+}
+
 .scroll-down-wrap:hover .scroll-down-icon {
   transform: translateY(150%);
 }
 
 .scroll-down-wrap.is-f:hover .scroll-down-icon {
   transform: translateY(-150%);
+}
+
+.hero_hardware-blur-layer {
+  position: absolute;
+  inset: 0;
 }

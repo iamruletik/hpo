@@ -15,7 +15,7 @@ export function initHeroVideoParallax() {
       trigger: sectionHero,
       start: 'top top',
       end: 'bottom bottom',
-      scrub: 1,
+      scrub: true,
       invalidateOnRefresh: true,
     },
   });

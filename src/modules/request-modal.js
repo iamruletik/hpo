@@ -25,7 +25,6 @@ export function initRequestModal() {
   let isOpen = false;
   let isClosing = false;
   let previouslyFocusedElement = null;
-  let savedScrollY = 0;
 
   form.noValidate = true;
   modal.setAttribute('role', 'dialog');
@@ -157,20 +156,10 @@ export function initRequestModal() {
   }
 
   function lockScroll() {
-    savedScrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${savedScrollY}px`;
-    document.body.style.left = '0';
-    document.body.style.width = '100%';
     window.lenis?.stop?.();
   }
 
   function unlockScroll() {
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.left = '';
-    document.body.style.width = '';
-    window.scrollTo(0, savedScrollY);
     window.lenis?.start?.();
   }
 

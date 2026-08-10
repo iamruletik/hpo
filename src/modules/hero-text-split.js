@@ -3,12 +3,14 @@ import SplitType from 'split-type';
 
 const SELECTORS = {
   heroTitle: '.hero_big-title',
+  heroTitleBadge: '.hero_title-badge',
   heroCopy: '.hero_copy-text',
+  heroDivider: '.hero_content-divider',
 
   hardwareTitle: '.hero_hardware-title',
   hardwareSection: '.hero_hardware',
   hardwareBadge: '.hero_hardware-badge',
-  hardwareMedia: '.hero_hardware-media',
+  hardwareWrapper: '.hero_mwrapper',
   hardwareBlur: '.hero_hardware-blur',
 
   heroVideo: '.hero-video-wrapper',
@@ -20,6 +22,48 @@ const SELECTORS = {
 
 function exists(target) {
   return gsap.utils.toArray(target).length > 0;
+}
+
+// Sharp at the top, progressively more blurred toward the bottom. Each
+// layer is a transparent div with backdrop-filter:blur() over the real
+// image, mask and backdrop-filter on the same element (that combo does
+// work together — an earlier attempt split them onto separate elements
+// based on a wrong theory about why nothing was showing). Each layer's
+// mask fades IN and back OUT over its own narrow band — not "fade in and
+// stay opaque to 100%" — so bands don't keep compounding on top of each
+// other's already-blurred output further down the stack. Only the last
+// (strongest) layer stays opaque through 100%, anchoring the bottom edge.
+const PROGRESSIVE_BLUR_LAYERS = [
+  { blur: 6, stops: [25, 35, 45, 55] },
+  { blur: 14, stops: [40, 50, 60, 70] },
+  { blur: 26, stops: [55, 65, 75, 85] },
+  { blur: 42, stops: [70, 80, 88, 96] },
+  { blur: 64, stops: [82, 95] },
+];
+
+function buildProgressiveBlurMask(stops) {
+  if (stops.length === 4) {
+    const [fadeInStart, fadeInEnd, fadeOutStart, fadeOutEnd] = stops;
+    return `linear-gradient(to bottom, transparent ${fadeInStart}%, black ${fadeInEnd}%, black ${fadeOutStart}%, transparent ${fadeOutEnd}%)`;
+  }
+  const [fadeInStart, fadeInEnd] = stops;
+  return `linear-gradient(to bottom, transparent ${fadeInStart}%, black ${fadeInEnd}%, black 100%)`;
+}
+
+function buildProgressiveBlur(container) {
+  container.replaceChildren();
+
+  PROGRESSIVE_BLUR_LAYERS.forEach(({ blur, stops }) => {
+    const layer = document.createElement('div');
+    layer.setAttribute('aria-hidden', 'true');
+    layer.className = 'hero_hardware-blur-layer';
+    layer.style.backdropFilter = `blur(${blur}px)`;
+    layer.style.webkitBackdropFilter = `blur(${blur}px)`;
+    const mask = buildProgressiveBlurMask(stops);
+    layer.style.mask = mask;
+    layer.style.webkitMask = mask;
+    container.appendChild(layer);
+  });
 }
 
 function splitLinesWithMask(selector) {
@@ -71,26 +115,31 @@ export async function initHeroTextSplit() {
 
   // Split before the preloader finishes so there's no jump/flash when it clears.
   const heroTitleLines = splitLinesWithMask(SELECTORS.heroTitle);
+  const heroTitleBadgeLines = splitLinesWithMask(SELECTORS.heroTitleBadge);
   const heroCopyLines = splitLinesWithMask(SELECTORS.heroCopy);
   const hardwareTitleLines = splitLinesWithMask(SELECTORS.hardwareTitle);
   const lastTitleLines = splitLinesWithMask(SELECTORS.lastTitle);
   const lastCopyLines = splitLinesWithMask(SELECTORS.lastCopy);
 
-  const heroLines = [...heroTitleLines, ...heroCopyLines, ...lastTitleLines, ...lastCopyLines];
+  const heroLines = [...heroTitleLines, ...heroTitleBadgeLines, ...heroCopyLines, ...lastTitleLines, ...lastCopyLines];
 
   gsap.set(heroLines, { yPercent: 110, opacity: 1, willChange: 'transform', force3D: true });
   gsap.set(hardwareTitleLines, { yPercent: 100, opacity: 0, willChange: 'transform, opacity', force3D: true });
+  gsap.set(SELECTORS.heroDivider, { scaleX: 0, transformOrigin: '50% 50%' });
 
   // paused: true — held until the preloader finishes.
   const introTl = gsap.timeline({
     paused: true,
     defaults: { duration: 1.15, ease: 'expo.out' },
     onComplete: () => {
-      gsap.set([...heroTitleLines, ...heroCopyLines], { clearProps: 'willChange' });
+      gsap.set([...heroTitleLines, ...heroTitleBadgeLines, ...heroCopyLines], { clearProps: 'willChange' });
     },
   });
 
-  introTl.to(heroTitleLines, { yPercent: 0, stagger: 0.2 }).to(heroCopyLines, { yPercent: 0, stagger: 0.12 }, '-=1.05');
+  introTl
+    .to([...heroTitleLines, ...heroTitleBadgeLines], { yPercent: 0, stagger: 0.2 })
+    .to(heroCopyLines, { yPercent: 0, stagger: 0.12 }, '-=1.05')
+    .to(SELECTORS.heroDivider, { scaleX: 1, duration: 0.9, ease: 'power3.out' }, 0);
 
   let introStarted = false;
   function startHeroIntro() {
@@ -124,21 +173,24 @@ export async function initHeroTextSplit() {
     { trigger: SELECTORS.hardwareSection, start: 'top-=150 center' }
   );
 
-  const hardwareMedia = document.querySelector(SELECTORS.hardwareMedia);
+  const hardwareWrapper = document.querySelector(SELECTORS.hardwareWrapper);
   const hardwareBlur = document.querySelector(SELECTORS.hardwareBlur);
 
-  if (hardwareMedia) {
-    gsap.set(hardwareMedia, {
-      maxHeight: 0,
-      yPercent: 50,
+  if (hardwareWrapper) {
+    gsap.set(hardwareWrapper, {
+      yPercent: 100,
       opacity: 0.9,
-      overflow: 'hidden',
-      willChange: 'max-height, transform, opacity',
+      willChange: 'transform, opacity',
       force3D: true,
     });
 
     if (hardwareBlur) {
-      gsap.set(hardwareBlur, { height: '20rem', overflow: 'hidden', willChange: 'height' });
+      buildProgressiveBlur(hardwareBlur);
+      // No willChange here — it promotes this element to its own compositing
+      // layer, which isolates it from the page's real backdrop and breaks
+      // backdrop-filter on the children inside it (confirmed live: works
+      // fine with backdrop-filter directly on this element, not through it).
+      gsap.set(hardwareBlur, { opacity: 1 });
     }
 
     const mediaTl = gsap.timeline({
@@ -151,17 +203,43 @@ export async function initHeroTextSplit() {
       },
     });
 
-    // Height reveal and media movement start together.
-    mediaTl
-      .to(hardwareMedia, { maxHeight: () => hardwareMedia.scrollHeight, duration: 1.3, ease: 'power3.inOut' }, 0)
-      .to(hardwareMedia, { yPercent: 0, opacity: 1, duration: 0.5, ease: 'power3.out', force3D: true }, 0)
-      .set(hardwareMedia, { maxHeight: 'none', clearProps: 'overflow,willChange' });
+    mediaTl.to(
+      hardwareWrapper,
+      {
+        yPercent: 0,
+        opacity: 1,
+        duration: 1.2,
+        ease: 'power3.out',
+        force3D: true,
+      },
+      0
+    );
 
-    // Blur starts shrinking near the end of the media reveal.
+    // Own separate scrub, not part of mediaTl — the wrapper stays a
+    // trigger-once play, only the blur's slide-out tracks scroll directly.
+    // No willChange (breaks backdrop-filter on the children, see above).
+    // yPercent:100 moves it by exactly its own height regardless of what
+    // that actually resolves to.
     if (hardwareBlur) {
-      mediaTl
-        .to(hardwareBlur, { height: '0rem', duration: 1.4, ease: 'power3.out' }, '-=0.4')
-        .set(hardwareBlur, { clearProps: 'overflow,willChange' });
+      gsap.to(hardwareBlur, {
+        yPercent: 100,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: SELECTORS.hardwareSection,
+          start: 'center center',
+          end: '+=400',
+          scrub: true,
+          invalidateOnRefresh: true,
+          // Once scrolled past, lock it there (kill stops it reversing if
+          // you scroll back up) and tear it down — it's not visible
+          // anymore, no reason to keep paying for backdrop-filter
+          // compositing on it.
+          onLeave: (self) => {
+            self.kill();
+            hardwareBlur.style.display = 'none';
+          },
+        },
+      });
     }
   }
 

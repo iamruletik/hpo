@@ -471,8 +471,7 @@ body.solution-modal-lock {
     width: auto;
   }
 
-  .solutions-card-footer,
-  .solutions-label {
+  .solutions-card-footer {
     display: none;
   }
 
@@ -483,10 +482,6 @@ body.solution-modal-lock {
     left: auto;
     top: auto;
     min-width: none;
-  }
-
-  .solution-image-stage {
-    height: 180px;
   }
 
   .solution-caption {

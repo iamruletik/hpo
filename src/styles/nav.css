@@ -1,7 +1,65 @@
+:root {
+  /* Loops back to its own starting color at 100% so repeat-x has no seam
+     as it pans — the falloff at the edges is handled entirely by the mask
+     below, not by transparent stops in this gradient. On :root (not
+     .nav-progress-bar) because .nav-progress-glow needs it too and isn't
+     a descendant of .nav-progress-bar — see the comment on that rule. */
+  --nav-progress-gradient: linear-gradient(
+    90deg,
+    rgba(0, 206, 172, 0.6) 0%,
+    rgba(13, 150, 211, 0.5) 33%,
+    rgba(239, 82, 54, 0.55) 66%,
+    rgba(0, 206, 172, 0.6) 100%
+  );
+  --nav-progress-edge-mask: linear-gradient(90deg, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+
 .nav-progress-bar {
   width: 100%;
-  max-width: 0%;
-  transition: max-width 0.08s linear;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-progress-fill {
+  position: absolute;
+  inset: 0;
+  background-image: var(--nav-progress-gradient);
+  background-size: 100% 100%;
+  background-repeat: repeat-x;
+  -webkit-mask-image: var(--nav-progress-edge-mask);
+  mask-image: var(--nav-progress-edge-mask);
+}
+
+/* Child of .nav_center, inset 0 to match it exactly, with its own
+   overflow:hidden — .nav_center itself needs overflow:visible for other
+   reasons, so it can't clip the glow directly. This wrapper clips just the
+   glow to .nav_center's rounded silhouette without touching that. */
+.nav-progress-glow-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 100px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Lives inside .nav-progress-glow-mask, not .nav-progress-bar/.nav-p-bar —
+   both of those need overflow:hidden for their own clipping, which would
+   clip a glow too. Scaled via scaleX (not clipped-reveal) so it doesn't
+   need a clip ancestor either. */
+.nav-progress-glow {
+  position: absolute;
+  /* top/left/width/height set inline by JS — sized to match
+     .nav-progress-bar's actual rect (the mask above shares .nav_center's
+     containing block, so the math is the same as before). */
+  border-radius: 100px;
+  transform-origin: left center;
+  background-image: var(--nav-progress-gradient);
+  background-size: 100% 100%;
+  background-repeat: repeat-x;
+  -webkit-mask-image: var(--nav-progress-edge-mask);
+  mask-image: var(--nav-progress-edge-mask);
+  filter: blur(4px);
+  opacity: 0.45;
 }
 
 .nav-menu-link {
@@ -38,7 +96,7 @@
 }
 
 .logo-wrap {
-  --logo-border-background: rgba(255, 255, 255, 0.12);
+  --logo-border-background: rgba(255, 255, 255, 0.3);
   position: relative;
   display: flex;
   justify-content: center;

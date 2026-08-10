@@ -8,7 +8,7 @@ function getLogoColor(theme) {
 }
 
 function getBorderColor(theme) {
-  return theme === 'light' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
+  return theme === 'light' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)';
 }
 
 export function initNavLogoTheme() {

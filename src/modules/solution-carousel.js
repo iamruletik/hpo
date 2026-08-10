@@ -490,6 +490,7 @@ function setupSolutionsSection(section, sharedModal) {
   const titleList = section.querySelector('.solutions-title-list');
   const captionEl = section.querySelector('.solution-caption');
   const moreButton = section.querySelector('.solution-more');
+  const solutionsCard = section.querySelector('.solutions-card');
   const stepLabel = section.querySelector('.solutions-step');
   const sideLabel = section.querySelector('.solutions-label');
 
@@ -609,7 +610,7 @@ function setupSolutionsSection(section, sharedModal) {
   }
 
   function updateSideLabel(index, isInstant) {
-    if (!sideLabel) return;
+    if (!sideLabel || window.innerWidth <= 768) return;
     const gapPx = getTitleGapPx();
     const offset = -computeTitleOffset(0, index, gapPx);
 
@@ -785,6 +786,15 @@ function setupSolutionsSection(section, sharedModal) {
   }
   moreButton?.addEventListener('click', (event) => {
     event.preventDefault();
+    if (activeIndex >= 0) openModalForIndex(activeIndex);
+  });
+
+  // .solution-more is hidden on mobile — the whole card stands in for it
+  // there instead. Guarded to mobile only, and skips clicks already
+  // handled by .solution-more itself (hidden there, but defensive anyway).
+  solutionsCard?.addEventListener('click', (event) => {
+    if (window.innerWidth > 768) return;
+    if (event.target.closest('.solution-more')) return;
     if (activeIndex >= 0) openModalForIndex(activeIndex);
   });
 
