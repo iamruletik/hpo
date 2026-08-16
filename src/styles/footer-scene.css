@@ -16,6 +16,47 @@
   box-sizing: border-box;
 }
 
+/* Reveal masks built by footer-reveal.js. Each wrapper clips its contents so
+   the line or link can slide up from behind its own edge.
+
+   .footer-title starts hidden because SplitType needs a frame to build the
+   lines — without this the unsplit heading flashes first. Everything else stays
+   visible; its mask does the hiding. */
+.footer-title {
+  visibility: hidden;
+}
+
+/* The clip box is the line box, which is tighter than the glyphs — descenders
+   (g, y, p) and tall ascenders get sliced. Padding grows the box, the matching
+   negative margin cancels it out of the layout. Same values as .line-mask in
+   hero.css. */
+.footer-line-mask {
+  display: block;
+  overflow: hidden;
+  padding-top: 0.12em;
+  padding-bottom: 0.16em;
+  margin-top: -0.12em;
+  margin-bottom: -0.16em;
+}
+
+.footer-line {
+  display: block;
+  will-change: transform;
+}
+
+.footer-reveal-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.18em;
+  margin-bottom: -0.18em;
+}
+
+.footer-reveal-mask > * {
+  display: inline-block;
+  will-change: transform;
+}
+
 .footer-scene__glow {
   position: absolute;
   pointer-events: none;

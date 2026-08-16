@@ -255,8 +255,9 @@ export async function initHeroTextSplit() {
       scrollTrigger: {
         trigger: 'body',
         start: 'top+=100 top',
-        toggleActions: 'play none none none',
-        once: true,
+        // `once` has to go with it — it kills the trigger after the first play,
+        // so the reverse would never fire.
+        toggleActions: 'play none none reverse',
         invalidateOnRefresh: true,
       },
     });

@@ -24,6 +24,7 @@ import { initCtaReveal } from './modules/cta-reveal.js';
 import { initOverviewReveal } from './modules/overview-reveal.js';
 import { initBodyThemeScroll } from './modules/body-theme-scroll.js';
 import { initFooterSequence } from './modules/footer-sequence.js';
+import { initFooterReveal } from './modules/footer-reveal.js';
 
 // Startup runs in two phases.
 //
@@ -56,7 +57,7 @@ function runEarly() {
   //     rebuilds them from the CMS source, so late init shows a bare section.
   //   overview-reveal owns elements CSS hides (.scroll-fill-text,
   //     .overview_lower are visibility:hidden) and nothing else reveals them.
-  //initSolutionCarousel();
+  initSolutionCarousel();
   initOverviewReveal();
 }
 
@@ -70,6 +71,7 @@ const DEFERRED = [
   initNavProgress,
   initCtaReveal,
   initFooterSequence,
+  initFooterReveal,
 ];
 
 // Time-sliced so phase two does not simply become a new long task the moment
