@@ -1,18 +1,11 @@
 /* Solutions scroll/carousel (section_for-who) */
 
-.solutions-scroll {
-  position: relative;
-  height: var(--solutions-scroll-height, 500vh);
-  color: #fff;
-}
-
-.solutions-sticky {
-  height: 100vh;
-  overflow: hidden;
-  background: #f24b38;
-}
-
-.solutions-sticky,
+/* .solutions-scroll and .solutions-sticky live in Webflow, position: sticky
+   included. The bare .solutions-sticky selector used to be repeated here as
+   well — redeclaring position on a sticky element from a stylesheet that
+   arrives later makes the browser re-resolve its sticky constraint, which is
+   a reflow for no gain. Only the modal-lock case stays, since Webflow cannot
+   express that ancestor selector. */
 html.solution-modal-lock .section_for-who .solutions-sticky {
   position: sticky;
   top: 0;
@@ -55,17 +48,7 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
   justify-self: end;
 }
 
-.solutions-card {
-  position: absolute;
-  z-index: 10;
-  top: 27.8vh;
-  left: 3.75vw;
-  width: clamp(280px, 19.8vw, 390px);
-}
-
-.solutions-card-footer {
-  margin-top: 22px;
-}
+/* .solutions-card and .solutions-card-footer now live in Webflow. */
 
 .solution-image-stage {
   position: relative;
@@ -91,8 +74,22 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
     transform 0.25s;
 }
 
-.solution-more:hover {
-  background: rgba(255, 255, 255, 0.22);
+/* .is-hovered is set by the carousel when the pointer is over the ACTIVE title
+   line. The title list and the card are separate subtrees, so no selector can
+   reach across — it has to come from JS. */
+.solution-more:hover,
+.solution-more.is-hovered {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.more-btn-plus {
+  transform: rotate(0deg);
+  transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.solution-more:hover .more-btn-plus,
+.solution-more.is-hovered .more-btn-plus {
+  transform: rotate(180deg);
 }
 
 .solution-caption {
@@ -111,13 +108,10 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
 
 /* Title list */
 
-.solutions-title-list {
-  position: absolute;
-  z-index: 5;
-  top: 50%;
-  height: 100vh;
-  transform: translateY(-50%);
-}
+/* .solutions-title-list is positioned entirely in Webflow now. It used to be
+   declared in both places with different values (Webflow had top: 31.25rem,
+   this file had top: 50% + translateY(-50%)), so the list sat where Webflow
+   put it until main.css arrived and then moved. */
 
 .solution-title-line {
   position: absolute;
@@ -150,19 +144,44 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
   outline-offset: 0.2em;
 }
 
+/* Three flex children: paren, name, paren. They used to be inline spans inside
+   the text run, so a title that wrapped to two lines left one paren stranded on
+   the second line. As flex siblings they sit on their own axis regardless of
+   how many lines .solution-name takes, and align-items does the vertical
+   centring that the old per-paren translate offsets were faking. */
+.solution-title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.15em;
+  /* gap is safe to drive from CSS — GSAP only writes transform/opacity here. */
+  transition: gap 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Only the active line opens up; the parens are invisible on the others. */
+.solution-title-line.is-active:hover {
+  gap: 0.35em;
+}
+
+.solution-name {
+  flex: 0 1 auto;
+}
+
 .solution-paren {
-  display: inline-block;
+  flex: 0 0 auto;
+  display: block;
   width: 0.7rem;
-  opacity: var(--paren-opacity, 0);
   color: rgba(255, 255, 255, 0.45);
-}
+  /* align-items centres against the full line box, which includes descender
+     space the text does not use — so the parens read high. Nudging down by a
+     fraction of an em lands them on the visual baseline.
 
-.solution-paren.is-first {
-  transform: translate(0, -0.9rem);
-}
-
-.solution-paren.is-second {
-  transform: translate(0, -0.5rem);
+     Done with position, not transform: GSAP owns transform on these for the
+     scale animation and would overwrite a translate. */
+  position: relative;
+  top: 0.06em;
+  /* Resting state before GSAP takes over the transform on first update. */
+  transform: scale(0);
+  transform-origin: center center;
 }
 
 .solution-paren img {
@@ -408,11 +427,7 @@ body.solution-modal-lock {
     border-radius: 20px;
   }
 
-  .solutions-title-list {
-    top: 43%;
-    left: 5vw;
-    width: 90vw;
-  }
+  /* .solutions-title-list tablet override also lives in Webflow now. */
 
   .solution-title-line {
     font-size: clamp(48px, 10vw, 86px);
@@ -496,16 +511,9 @@ body.solution-modal-lock {
     font-size: 2.5rem;
   }
 
+  /* Width only — the translate offsets are gone, flex centring replaces them. */
   .solution-paren {
     width: 0.3rem;
-  }
-
-  .solution-paren.is-first {
-    transform: translate(0, -0.45rem);
-  }
-
-  .solution-paren.is-second {
-    transform: translate(0, -0.3rem);
   }
 
   .solution-modal-panel {

@@ -7,9 +7,12 @@ const MAXIMUM_WAITING_TIME = 5000;
 
 const PROGRESS_STOPS = [
   [0, 0],
-  [154, 3],
-  [308, 15],
-  [462, 24],
+  // The first three stops used to creep (3%, 15%) which left the fill sitting
+  // at a hairline while the mark was already moving. It now takes a real bite
+  // out of the track immediately.
+  [154, 10],
+  [308, 20],
+  [462, 28],
   [615, 41],
   [769, 50],
   [923, 59],
@@ -22,8 +25,49 @@ const PROGRESS_STOPS = [
   [2000, 90],
 ];
 
-// Logo letter reveal uses its own 0–100 progress, independent of page load.
-const LETTER_THRESHOLDS = [61, 67, 75, 82, 88, 93, 97];
+// Logo reveal runs on its own 0–100 progress, independent of page load. The
+// mark slides aside first, finishing at SHIFT_END; the letters then land on
+// widening gaps (4, 5, 6, 7, 8, 9) so the stagger snaps out fast and eases off.
+//
+// The logo clock is 0–100 across MINIMUM_SEQUENCE (2000ms). Both phases used to
+// sit in the back half of it, so the mark crept for a second and the last letter
+// only landed at ~1.5s. Everything is pulled forward: the mark is done by 640ms
+// and the wordmark is complete by ~1.3s, leaving the tail for the counter to
+// finish rather than for the logo to still be assembling.
+const SHIFT_END = 32;
+// Letters start just before the mark finishes sliding, so the two overlap
+// slightly instead of reading as two separate beats.
+const LETTER_THRESHOLDS = [28, 32, 37, 43, 50, 58, 67];
+
+// How far below its final position each letter starts, in SVG user units. The
+// viewBox is only 33 tall while the horizontal offsets reach ~110, so this has
+// to be a sizeable fraction of the height to register against the slide.
+const LETTER_DROP = 26;
+
+// Every letter emerges at the same spot — the right edge of the wordmark, next
+// to the mark — and slides left into place while rising the LETTER_DROP units
+// it started below. Because they share that origin, each new letter appears to
+// shove the earlier ones leftward.
+function placeLetters(letters) {
+  let originX = 0;
+
+  const boxes = letters.map((letter) => {
+    try {
+      const box = letter.getBBox();
+      originX = Math.max(originX, box.x + box.width);
+      return box;
+    } catch {
+      return null;
+    }
+  });
+
+  letters.forEach((letter, index) => {
+    const box = boxes[index];
+    if (!box) return;
+    const offsetX = originX - (box.x + box.width);
+    letter.style.transform = `translate(${offsetX}px, ${LETTER_DROP}px)`;
+  });
+}
 
 function progressAt(time) {
   for (let index = 1; index < PROGRESS_STOPS.length; index += 1) {
@@ -41,6 +85,12 @@ function progressAt(time) {
 
 function easeOutCubic(value) {
   return 1 - Math.pow(1 - value, 3);
+}
+
+// Slow start, fast finish. Quadratic rather than cubic: cubic held the mark
+// almost still for the first 60% of its phase, which read as nothing happening.
+function easeInQuad(value) {
+  return value * value;
 }
 
 function waitForDOM() {
@@ -107,10 +157,26 @@ async function waitForHeroAssets(preloader) {
   await Promise.all([imagesReady, videosReady, fontsReady]);
 }
 
+// main.js is a separate bundle now, so the preloader can no longer assume the
+// site is initialised just because its own code ran. main.js raises this once
+// its above-the-fold modules are live.
+function waitForSiteReady() {
+  // Flag first, in case main.js finished before this listener was attached.
+  if (window.siteReady) return Promise.resolve();
+  return new Promise((resolve) => {
+    window.addEventListener('site:ready', resolve, { once: true });
+  });
+}
+
 function waitForHeroReady(preloader) {
-  const assetsReady = waitForHeroAssets(preloader).catch(() => undefined);
+  const ready = Promise.all([
+    waitForHeroAssets(preloader).catch(() => undefined),
+    waitForSiteReady(),
+  ]);
+  // Still capped: if main.js 404s or throws during init, the curtains open
+  // anyway rather than trapping the user behind a white screen.
   const safetyTimeout = new Promise((resolve) => window.setTimeout(resolve, MAXIMUM_WAITING_TIME));
-  return Promise.race([assetsReady, safetyTimeout]);
+  return Promise.race([ready, safetyTimeout]);
 }
 
 export function initPreloader() {
@@ -135,10 +201,21 @@ export function initPreloader() {
 
   const fill = preloader.querySelector('.track-fill');
   const number = preloader.querySelector('.progress-number');
+
+  // .progress-number is the 28px clipping window (overflow: hidden). Animating
+  // it moves the window along with the text, so the digits can never slide
+  // behind anything — they need their own layer inside it.
+  let numberValue = number?.querySelector('.progress-number__value');
+  if (number && !numberValue) {
+    numberValue = document.createElement('span');
+    numberValue.className = 'progress-number__value';
+    numberValue.textContent = number.textContent.trim() || '0';
+    number.replaceChildren(numberValue);
+  }
   const logo = preloader.querySelector('.brand-logo');
   const letters = [...preloader.querySelectorAll('.logo-letter')];
 
-  if (!fill || !number || !logo) {
+  if (!fill || !number || !numberValue || !logo) {
     finish();
     return;
   }
@@ -160,9 +237,10 @@ export function initPreloader() {
   // Reset in case old inline values (e.g. width: 90%) were left on the element.
   fill.style.width = '';
   fill.style.transform = 'translateX(-50%) scaleX(0)';
-  number.textContent = '0';
+  numberValue.textContent = '0';
   logo.style.setProperty('--logo-shift', '-41.6%');
   letters.forEach((letter) => letter.classList.remove('is-visible'));
+  placeLetters(letters);
 
   document.documentElement.classList.add('preloader-active');
   preloader.classList.remove('is-complete');
@@ -178,7 +256,7 @@ export function initPreloader() {
 
     const roundedProgress = Math.round(safeProgress);
     if (roundedProgress !== lastNumber) {
-      number.textContent = String(roundedProgress);
+      numberValue.textContent = String(roundedProgress);
       lastNumber = roundedProgress;
     }
   }
@@ -188,13 +266,16 @@ export function initPreloader() {
     if (Math.abs(safeProgress - lastLogoProgress) < 0.001) return;
     lastLogoProgress = safeProgress;
 
-    const logoPosition = Math.min(1, Math.max(0, (safeProgress - 58) / 42));
-    const logoShift = -41.6 * (1 - logoPosition);
+    const logoPosition = Math.min(1, Math.max(0, safeProgress / SHIFT_END));
+    const logoShift = -41.6 * (1 - easeInQuad(logoPosition));
     logo.style.setProperty('--logo-shift', `${logoShift}%`);
 
     letters.forEach((letter, index) => {
       const threshold = LETTER_THRESHOLDS[index] ?? 100;
-      if (safeProgress >= threshold) letter.classList.add('is-visible');
+      if (safeProgress < threshold || letter.classList.contains('is-visible')) return;
+      // Clearing the inline offset lets the CSS transition carry it home.
+      letter.style.transform = 'translate(0px, 0px)';
+      letter.classList.add('is-visible');
     });
   }
 

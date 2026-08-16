@@ -36,7 +36,14 @@ export function initLenis() {
 
   window.addEventListener('load', () => {
     lenis.resize();
-    ScrollTrigger.refresh();
+
+    // `load` waits for every image and video on the page, and the footer
+    // sequence deliberately starts its 60 frames only after the preloader is
+    // gone — so this now fires long after the curtains open. A global refresh
+    // at that point recalculates every trigger while the user is looking at a
+    // sticky section, which is exactly the jump. If the preloader has already
+    // finished, the resize above is enough.
+    if (!window.preloaderFinished) ScrollTrigger.refresh();
   });
 
   return lenis;

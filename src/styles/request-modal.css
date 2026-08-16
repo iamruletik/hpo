@@ -1,26 +1,5 @@
-.request-modal {
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.4);
-  position: fixed;
-  inset: 0;
-  overflow-y: auto;
-}
-
-.request-modal-close-wrapper {
-  background-color: #ef5236;
-  border-radius: 50%;
-  justify-content: center;
-  align-items: center;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  position: absolute;
-  inset: 1.25rem 1.25rem auto auto;
-  cursor: pointer;
-  transition:
-    transform 0.3s,
-    background-color 0.25s;
-}
+/* .request-modal and .request-modal-close-wrapper now live in Webflow.
+   Webflow also owns the display:none + flex centering the repo never set. */
 
 .request-modal-close-wrapper:hover {
   background-color: #000;
@@ -146,53 +125,15 @@
 
 /* Buttons */
 
-.request-modal .form-buttons {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-  margin-top: 20px;
-}
+/* .form-buttons, .form-cancel-button (incl. its :hover and :active) and the
+   idle .form-send-button now live in Webflow. The elements are injected by
+   request-modal.js, but Webflow owns the class styles.
 
-.request-modal .form-cancel-button,
-.request-modal .form-send-button {
-  border: 0;
-  border-radius: 48px;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 40px;
-  font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  transition:
-    background-color 0.25s,
-    color 0.25s,
-    transform 0.2s,
-    opacity 0.25s;
-}
+   The .is-active rules below stay here: JS toggles that class to mark the
+   form valid, and it's animation/state, not layout. */
 
-.request-modal .form-cancel-button:active,
 .request-modal .form-send-button.is-active:active {
   transform: scale(0.98);
-}
-
-.request-modal .form-cancel-button {
-  color: #000;
-  background-color: rgba(0, 0, 0, 0.12);
-  display: flex;
-  cursor: pointer;
-  user-select: none;
-}
-
-.request-modal .form-cancel-button:hover {
-  background-color: rgba(0, 0, 0, 0.17);
-}
-
-.request-modal .form-send-button {
-  color: rgba(0, 0, 0, 0.3);
-  background-color: transparent;
-  cursor: default;
 }
 
 .request-modal .form-send-button.is-active {

@@ -4,8 +4,11 @@ import SplitType from 'split-type';
 const CONFIG = {
   duration: 0.75,
   ease: 'power3.out',
-  stepVh: 42,
-  useSnap: true,
+  // Scroll distance per item, as a % of viewport height. Section height is
+  // viewportHeight + (count - 1) * stepVh, so with 8 items 42 meant ~394vh of
+  // scrolling to get through the carousel. This is the only knob for pacing.
+  stepVh: 26,
+  useSnap: false,
   titleGapRem: { mobile: 1.5, desktop: 3 },
   titleActiveShiftRem: { mobile: 0.5, desktop: 2 },
   modal: {
@@ -339,11 +342,21 @@ function openSolutionModal(modalEl, item) {
   modalEl._timeline = null;
   modalEl._isOpenOrOpening = true;
 
-  lockPageScroll(modalEl);
-  bindCloseHoverEffects(modalEl);
-
+  // Make it visible BEFORE the side effects. These used to run first, so a
+  // throw anywhere in lockPageScroll — killing tweens, stopping Lenis,
+  // disabling the pinned trigger — left the modal populated but without
+  // .is-open, i.e. invisible. The next click then found stale content already
+  // in place and got through, which is why it always took two.
   modalEl.classList.add('is-open');
   modalEl.setAttribute('aria-hidden', 'false');
+
+  try {
+    lockPageScroll(modalEl);
+  } catch (error) {
+    console.warn('[Solution Modal] Scroll lock failed; opening anyway', error);
+  }
+
+  bindCloseHoverEffects(modalEl);
   gsap.set(title, { visibility: 'hidden' });
   gsap.set(modalEl, { display: 'block' });
 
@@ -511,6 +524,9 @@ function setupSolutionsSection(section, sharedModal) {
   let viewportHeight = getViewportHeight();
   let viewportWidth = document.documentElement.clientWidth;
   let isScrollToActive = false;
+  // False until scroll restoration and the first refresh are done with; see
+  // the trigger's onUpdate.
+  let isSettled = false;
   let scrollToTween = null;
 
   function getTitleGapPx() {
@@ -519,7 +535,22 @@ function setupSolutionsSection(section, sharedModal) {
 
   function setSectionHeight() {
     const stepPx = viewportHeight * (CONFIG.stepVh / 100);
-    section.style.height = `${viewportHeight + Math.max(count - 1, 1) * stepPx}px`;
+    const target = viewportHeight + Math.max(count - 1, 1) * stepPx;
+
+    // The Webflow class sets a static height so the document is the right size
+    // on first paint. If it disagrees with what we compute here, the document
+    // resizes the moment this runs — and on a reload partway down the page the
+    // browser has already restored scroll against the old height, so the
+    // pinned content lands at the wrong progress and visibly snaps once
+    // ScrollTrigger refreshes. Keep the two in sync.
+    const rendered = section.offsetHeight;
+    if (Math.abs(rendered - target) > window.innerHeight * 0.25) {
+      console.warn(
+        `[Solution Carousel] .solutions-scroll height in Webflow is ${Math.round((rendered / window.innerHeight) * 100)}vh but ${count} items need ${Math.round((target / window.innerHeight) * 100)}vh. Update the class or expect a jump on reload.`,
+      );
+    }
+
+    section.style.height = `${target}px`;
   }
 
   function updateStepLabelAndCaption(index, isInstant) {
@@ -578,6 +609,9 @@ function setupSolutionsSection(section, sharedModal) {
       const distance = Math.abs(buttonIndex - index);
       const yOffset = computeTitleOffset(index, buttonIndex, gapPx);
       const opacity = isActive ? 1 : gsap.utils.clamp(0.12, 0.22, 0.22 - 0.025 * distance);
+      // Stashed so the hover bump below knows what to return to. GSAP writes
+      // opacity inline, so a :hover rule in CSS would never win.
+      button._baseAlpha = distance > 5 ? 0 : opacity;
 
       button.classList.toggle('is-active', isActive);
       if (isActive) {
@@ -601,7 +635,7 @@ function setupSolutionsSection(section, sharedModal) {
       });
 
       gsap.to(button.querySelectorAll('.solution-paren'), {
-        opacity: isActive ? 1 : 0,
+        scale: isActive ? 1 : 0,
         duration: isInstant ? 0 : 0.75 * CONFIG.duration,
         ease: CONFIG.ease,
         overwrite: true,
@@ -732,6 +766,30 @@ function setupSolutionsSection(section, sharedModal) {
     `;
     button.querySelector('.solution-name').textContent = item.title;
 
+    // Hovering the active title should read as hovering the More button, since
+    // clicking either does the same thing. Guarded to the active index so the
+    // other titles do not light it up.
+    // overwrite: 'auto' rather than true — it should only take over autoAlpha,
+    // leaving the position/scale tween from updateTitleList running.
+    const fadeTo = (value) =>
+      gsap.to(button, { autoAlpha: value, duration: 0.25, ease: 'power2.out', overwrite: 'auto' });
+
+    button.addEventListener('mouseenter', () => {
+      if (index === activeIndex) {
+        moreButton?.classList.add('is-hovered');
+        return;
+      }
+      // Skip the ones parked off-screen at zero, or they would fade in.
+      if (!button._baseAlpha) return;
+      fadeTo(Math.min(1, button._baseAlpha + 0.22));
+    });
+
+    button.addEventListener('mouseleave', () => {
+      moreButton?.classList.remove('is-hovered');
+      if (index === activeIndex || !button._baseAlpha) return;
+      fadeTo(button._baseAlpha);
+    });
+
     button.addEventListener('click', () => {
       if (modal._isOpenOrOpening) return;
 
@@ -806,13 +864,32 @@ function setupSolutionsSection(section, sharedModal) {
     start: 'top top',
     end: 'bottom bottom',
     invalidateOnRefresh: true,
+    // Instant, unlike onUpdate. Refresh fires after load and after scroll
+    // restoration, which is exactly when the carousel would otherwise animate
+    // from index 0 to wherever the page actually is.
+    onRefresh: (self) => {
+      if (modal._isOpenOrOpening) return;
+      goToIndex(Math.round(self.progress * (count - 1)), true);
+    },
     onUpdate: (self) => {
       if (modal._isOpenOrOpening || isScrollToActive) return;
-      goToIndex(Math.round(self.progress * (count - 1)), false);
+      // Instant until the page has settled. On a reload partway into the
+      // sticky section this module runs before the browser restores scroll, so
+      // progress reads 0 and the carousel sets up on item 0. Restoration then
+      // fires this handler with the real progress — animating that correction
+      // is the jump. Reloading at the very top looked fine only because index 0
+      // was already correct there.
+      goToIndex(Math.round(self.progress * (count - 1)), !isSettled);
     },
     snap: CONFIG.useSnap && count > 1 && !isTouchDevice() && {
       snapTo: (value) => {
-        if (modal._isOpenOrOpening) return value;
+        // Returning `value` unchanged means "already snapped", so nothing moves.
+        // Until the user has actually scrolled, that is what we want: reloading
+        // partway into the section leaves you between snap points, and the
+        // refresh-triggered snap would drag the page to the nearest one. That
+        // is the jump. Reloading at the very top never showed it because the
+        // top IS a snap point.
+        if (modal._isOpenOrOpening || !isSettled) return value;
         const step = 1 / (count - 1);
         return Math.round(value / step) * step;
       },
@@ -820,6 +897,62 @@ function setupSolutionsSection(section, sharedModal) {
       delay: 0.04,
       ease: 'power2.out',
     },
+  });
+
+  // The trigger knows the real scroll position the moment it is created, so
+  // adopt it before the first paint rather than starting at 0 and easing there.
+  goToIndex(Math.round(sectionTrigger.progress * (count - 1)), true);
+
+  // TEMPORARY DIAGNOSTIC — delete once the reload jump is pinned down.
+  // Logs every time the title list actually moves, with the state at that
+  // moment, so the timestamp tells us which actor did it.
+  {
+    let lastTop = null;
+    let lastDocH = null;
+    let lastSectionTop = null;
+
+    const watch = () => {
+      const docH = document.documentElement.scrollHeight;
+      const sectionTop = Math.round(section.getBoundingClientRect().top + window.scrollY);
+
+      if (lastDocH !== null && Math.abs(docH - lastDocH) > 2) {
+        console.log(
+          `[reflow] ${performance.now().toFixed(0)}ms  docH ${lastDocH}→${docH}` +
+            `  sectionTop ${lastSectionTop}→${sectionTop}`,
+        );
+      }
+      lastDocH = docH;
+      lastSectionTop = sectionTop;
+
+      const top = Math.round(titleList.getBoundingClientRect().top);
+      if (lastTop !== null && Math.abs(top - lastTop) > 2) {
+        const sticky = section.querySelector('.solutions-sticky');
+        const stickyRect = sticky.getBoundingClientRect();
+        const listStyle = getComputedStyle(titleList);
+        const stickyStyle = getComputedStyle(sticky);
+
+        console.log(
+          `[carousel] ${performance.now().toFixed(0)}ms  listTop ${lastTop}→${top}` +
+            `  | list: pos=${listStyle.position} top=${listStyle.top} h=${Math.round(titleList.getBoundingClientRect().height)} transform=${listStyle.transform}` +
+            `  | sticky: pos=${stickyStyle.position} top=${Math.round(stickyRect.top)} h=${Math.round(stickyRect.height)}` +
+            `  | index=${activeIndex} progress=${sectionTrigger ? sectionTrigger.progress.toFixed(3) : 'n/a'}`,
+        );
+      }
+      lastTop = top;
+      requestAnimationFrame(watch);
+    };
+    requestAnimationFrame(watch);
+  }
+
+  // Settle on genuine user intent rather than `load`. ScrollTrigger refreshes
+  // — and the snap that rides along with them — can fire well after load, so a
+  // time-based flag still lets the initial snap through. Nothing needs to
+  // animate until the user has touched the page anyway.
+  const markSettled = () => {
+    isSettled = true;
+  };
+  ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach((type) => {
+    window.addEventListener(type, markSettled, { once: true, passive: true });
   });
 
   const resizeRecalc = gsap

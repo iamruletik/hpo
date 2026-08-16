@@ -1,7 +1,6 @@
 /* Migrated section-by-section from backup/style/*.css */
 @import './styles/base.css';
 @import './styles/nav.css';
-@import './styles/preloader.css';
 @import './styles/demo-button.css';
 @import './styles/arrow-button.css';
 @import './styles/hero.css';

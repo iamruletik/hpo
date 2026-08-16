@@ -61,22 +61,11 @@
   transform: scale(1.1);
 }
 
-.history_drag-cursor {
-  position: absolute;
-  top: 2rem;
-  left: 3rem;
-  z-index: 999;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-}
+/* .history_drag-cursor box now lives in Webflow. */
 
+/* Box moved to Webflow; these two are GSAP's start state and must stay here —
+   the cursor scales in from nothing on hover. */
 .history_inner-cursor {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1.25rem;
-  border-radius: 240px;
-  background-color: #000;
   opacity: 0;
   transform: scale(0);
 }
@@ -90,42 +79,14 @@
   font-weight: 700;
 }
 
-.history_progress-bar {
-  position: relative;
-  display: block;
-  width: calc(100% - 2 * var(--history-grid-padding));
-  height: 1px;
-  margin-left: var(--history-grid-padding);
-  margin-right: var(--history-grid-padding);
-  background-color: rgba(36, 31, 33, 0.2);
-}
+/* .history_progress-bar now lives in Webflow (it was deliberately
+   zero-sized there; that neutralizing rule has been cleared). */
 
-.history_progress {
-  position: absolute;
-  top: 0;
-  left: 0;
-  display: block;
-  width: 0%;
-  height: 1px;
-  background-color: var(--history-black);
-}
+/* .history_progress now lives in Webflow. */
 
-.history_lower {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 24px;
-  padding-left: var(--history-grid-padding);
-  padding-right: var(--history-grid-padding);
-}
+/* .history_lower now lives in Webflow (same neutralizing rule cleared). */
 
-.history_label {
-  margin: 0;
-  font-size: clamp(14px, 13.22px + 0.2vw, 16px);
-  line-height: 1.4;
-  letter-spacing: -0.02em;
-  font-weight: 500;
-}
+/* .history_label now lives in Webflow. */
 
 .history_nav {
   display: flex;

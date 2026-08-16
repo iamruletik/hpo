@@ -12,7 +12,8 @@ export default defineConfig(({ command }) => ({
     rollupOptions: {
       input: {
         main: 'src/main.js',
-        '3d': 'src/3d.js',
+        // Separate entry so it can be loaded ahead of main.js — see the file.
+        preloader: 'src/preloader-entry.js',
       },
       output: {
         format: 'es',
@@ -31,5 +32,6 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 5173,
     cors: true,
+    allowedHosts: ['tunnel.ruletik.org'],
   },
 }));

@@ -1,18 +1,7 @@
+/* Box now lives in Webflow. These two stay: color is a theme token flipped by
+   theme.js, and tap-highlight has no Designer equivalent. */
 .demo-button {
-  position: relative;
-  width: auto;
-  height: auto;
-  padding: 1.25rem;
-  display: inline-grid;
-  place-items: center;
   color: var(--text);
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  text-decoration: none;
-  cursor: pointer;
-  overflow: visible;
-  isolation: isolate;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -65,7 +54,8 @@
   will-change: stroke-dasharray;
 }
 
-.demo-button__label,
+/* .demo-button__label's box moved to Webflow; the secondary-button variant
+   below is a descendant selector Webflow can't express, so it keeps its copy. */
 .button.is-secondary .chameleon-text.is-roll-label {
   white-space: nowrap;
   line-height: 1em;
@@ -74,13 +64,10 @@
   overflow: hidden;
 }
 
+/* Everything left here neutralizes Webflow's chameleon gradient text and needs
+   !important to win — not expressible in the Designer. */
 .demo-button__label {
-  z-index: 1;
-  display: block;
   color: inherit !important;
-  font-size: 0.8rem;
-  font-weight: 600;
-  pointer-events: none;
   background: none !important;
   background-image: none !important;
   background-repeat: no-repeat;

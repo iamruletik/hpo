@@ -1,8 +1,6 @@
 import { ScrollTrigger } from '../core/gsap.js';
 import { getElementTheme, findOverlappingThemedElements, computeGradientStops } from '../core/theme.js';
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
 const THEMES = {
   light: {
     primaryText: '#ffffff',
@@ -22,41 +20,6 @@ const THEMES = {
 
 function getThemeColor(theme, colorType) {
   return THEMES[theme]?.[colorType] ?? THEMES.light[colorType];
-}
-
-function ensureGradient(svg, gradientId) {
-  let defs = svg.querySelector('defs');
-  if (!defs) {
-    defs = document.createElementNS(SVG_NS, 'defs');
-    svg.insertBefore(defs, svg.firstChild);
-  }
-
-  svg.querySelector(`#${gradientId}`)?.remove();
-
-  const gradient = document.createElementNS(SVG_NS, 'linearGradient');
-  const viewBox = svg.viewBox?.baseVal;
-  const y1 = viewBox?.y ?? 0;
-  const height = viewBox?.height || 57;
-
-  gradient.setAttribute('id', gradientId);
-  gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
-  gradient.setAttribute('x1', '0');
-  gradient.setAttribute('y1', String(y1));
-  gradient.setAttribute('x2', '0');
-  gradient.setAttribute('y2', String(y1 + height));
-  defs.appendChild(gradient);
-
-  return gradient;
-}
-
-function setSvgGradientStops(gradient, stops) {
-  gradient.replaceChildren();
-  stops.forEach(({ percentage, color }) => {
-    const stop = document.createElementNS(SVG_NS, 'stop');
-    stop.setAttribute('offset', `${percentage}%`);
-    stop.setAttribute('stop-color', color);
-    gradient.appendChild(stop);
-  });
 }
 
 function stopsToLinearGradientCss(stops) {
@@ -106,40 +69,19 @@ function setGradientTextColor(textEl, stops) {
   textEl.style.webkitTextFillColor = 'transparent';
 }
 
-function buildDemoButtonEntry(button, index) {
-  const svg = button.querySelector('.demo-button__border');
-  const base = button.querySelector('.demo-button__base');
-  const activePaths = Array.from(button.querySelectorAll('.demo-button__active path'));
-  const label = button.querySelector('.demo-button__label');
-  const texts = Array.from(button.querySelectorAll('.demo-button__text'));
+function buildDemoButtonCssEntry(button) {
+  const ring = button.querySelector('.demo-button-css__ring');
+  const label = button.querySelector('.demo-button-css__label');
+  const texts = Array.from(button.querySelectorAll('.demo-button-css__text'));
 
-  if (!svg || !base || !activePaths.length || !label || !texts.length) {
-    console.warn('[Chameleon Buttons] Unexpected .demo-button structure', button);
+  if (!ring || !label || !texts.length) {
+    console.warn('[Chameleon Buttons] Unexpected .demo-button-css structure', button);
     return null;
   }
 
-  svg.setAttribute('preserveAspectRatio', 'none');
-
-  const baseGradientId = `chameleonButtonBase-${index}`;
-  const activeGradientId = `chameleonButtonActive-${index}`;
-  const baseGradient = ensureGradient(svg, baseGradientId);
-  const activeGradient = ensureGradient(svg, activeGradientId);
-
   resetLabelBackground(label);
 
-  return {
-    type: 'demo',
-    button,
-    svg,
-    base,
-    activePaths,
-    label,
-    texts,
-    baseGradient,
-    activeGradient,
-    baseGradientId,
-    activeGradientId,
-  };
+  return { type: 'demoCss', button, label, texts };
 }
 
 function buildSecondaryButtonEntry(button) {
@@ -147,28 +89,26 @@ function buildSecondaryButtonEntry(button) {
   return { type: 'secondary', button, container };
 }
 
-function updateDemoButton(entry, overlappingElements) {
-  const { button, svg, base, activePaths, label, texts, baseGradient, activeGradient, baseGradientId, activeGradientId } = entry;
-  const svgRect = svg.getBoundingClientRect();
+// There is no SVG here to hang a <linearGradient> off, so the paint goes onto
+// the button as two custom properties that the masked ring pseudo-elements
+// read as their background. A flat colour is a valid background too, so the
+// single-theme case writes the same two properties rather than branching.
+function updateDemoButtonCss(entry, overlappingElements) {
+  const { button, label, texts } = entry;
+  const buttonRect = button.getBoundingClientRect();
 
-  if (svgRect.height <= 0) return;
+  if (buttonRect.height <= 0) return;
 
   resetLabelBackground(label);
 
   if (overlappingElements.length === 1) {
     const theme = getElementTheme(overlappingElements[0].element);
     const textColor = getThemeColor(theme, 'primaryText');
-    const idleBorder = getThemeColor(theme, 'primaryIdleBorder');
-    const activeBorder = getThemeColor(theme, 'primaryActiveBorder');
 
     texts.forEach((text) => setSolidTextColor(text, textColor));
     button.style.color = textColor;
-    base.style.stroke = idleBorder;
-    base.setAttribute('stroke', idleBorder);
-    activePaths.forEach((path) => {
-      path.style.stroke = activeBorder;
-      path.setAttribute('stroke', activeBorder);
-    });
+    button.style.setProperty('--ring-idle', getThemeColor(theme, 'primaryIdleBorder'));
+    button.style.setProperty('--ring-active', getThemeColor(theme, 'primaryActiveBorder'));
     return;
   }
 
@@ -179,19 +119,14 @@ function updateDemoButton(entry, overlappingElements) {
     setGradientTextColor(text, stops);
   });
 
-  const baseStops = computeGradientStops({ rect: svgRect, overlappingElements, getColor: (theme) => getThemeColor(theme, 'primaryIdleBorder') });
-  setSvgGradientStops(baseGradient, baseStops);
-  const baseFill = `url(#${baseGradientId})`;
-  base.style.stroke = baseFill;
-  base.setAttribute('stroke', baseFill);
+  // Both rings are measured against the button rect, not their own — the
+  // pseudo-elements are inset:0 on it, so the gradient stops line up with the
+  // background boundary the same way the SVG's userSpaceOnUse gradient did.
+  const idleStops = computeGradientStops({ rect: buttonRect, overlappingElements, getColor: (theme) => getThemeColor(theme, 'primaryIdleBorder') });
+  button.style.setProperty('--ring-idle', stopsToLinearGradientCss(idleStops));
 
-  const activeStops = computeGradientStops({ rect: svgRect, overlappingElements, getColor: (theme) => getThemeColor(theme, 'primaryActiveBorder') });
-  setSvgGradientStops(activeGradient, activeStops);
-  const activeFill = `url(#${activeGradientId})`;
-  activePaths.forEach((path) => {
-    path.style.stroke = activeFill;
-    path.setAttribute('stroke', activeFill);
-  });
+  const activeStops = computeGradientStops({ rect: buttonRect, overlappingElements, getColor: (theme) => getThemeColor(theme, 'primaryActiveBorder') });
+  button.style.setProperty('--ring-active', stopsToLinearGradientCss(activeStops));
 }
 
 function updateSecondaryButton(entry, overlappingElements) {
@@ -244,9 +179,9 @@ export function initThemeColorSwap() {
   }
 
   const entries = buttons
-    .map((button, index) => {
+    .map((button) => {
       if (button.classList.contains('is-footer')) return null;
-      if (button.classList.contains('demo-button')) return buildDemoButtonEntry(button, index);
+      if (button.classList.contains('demo-button-css')) return buildDemoButtonCssEntry(button);
       if (button.classList.contains('is-secondary')) return buildSecondaryButtonEntry(button);
       console.warn('[Chameleon Buttons] Unknown button type', button);
       return null;
@@ -271,7 +206,7 @@ export function initThemeColorSwap() {
           const overlappingElements = findOverlappingThemedElements(rect, themedElements);
           if (!overlappingElements.length) return;
 
-          if (entry.type === 'demo') updateDemoButton(entry, overlappingElements);
+          if (entry.type === 'demoCss') updateDemoButtonCss(entry, overlappingElements);
           else updateSecondaryButton(entry, overlappingElements);
         });
       }
