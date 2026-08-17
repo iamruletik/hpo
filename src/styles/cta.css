@@ -9,3 +9,28 @@
   display: block;
   will-change: transform;
 }
+
+/* Scrim behind the copy. The image is bright at the top on mobile, where the
+   crop is tighter and the text sits over it, so the copy needs something to sit
+   on. A pseudo-element rather than a Webflow div: nothing about it is layout,
+   and cta-reveal drives it by animating --cta-scrim on the wrapper — GSAP can
+   tween a custom property, which is the only way to fade a ::after.
+
+   Paints above the img (later in the box order) and below .cta_content-wrapper,
+   which is the wrapper's sibling. */
+@media screen and (max-width: 991px) {
+  .cta_img-wrapper::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: var(--cta-scrim, 0);
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.6) 0%,
+      rgba(0, 0, 0, 0.45) 35%,
+      rgba(0, 0, 0, 0.1) 70%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+}

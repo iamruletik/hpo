@@ -189,7 +189,34 @@ export function initPreloader() {
 
   if (preloader.dataset.initialized === 'true') return;
 
+  // Scroll is blocked by swallowing the events, NOT by overflow: hidden.
+  // overflow on <html> (or <body>) silently disables position: sticky for every
+  // descendant — so while the preloader was up, .solutions-sticky could not
+  // stick. Removing the preloader restored overflow, sticky engaged, and the
+  // section snapped into place. That was the load jump.
+  const blockScroll = (event) => {
+    if (event.target.closest?.('.preloader')) return;
+    event.preventDefault();
+  };
+  const blockKeys = (event) => {
+    const keys = ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '];
+    if (keys.includes(event.key)) event.preventDefault();
+  };
+
+  function lockScroll() {
+    window.addEventListener('wheel', blockScroll, { passive: false });
+    window.addEventListener('touchmove', blockScroll, { passive: false });
+    window.addEventListener('keydown', blockKeys);
+  }
+
+  function unlockScroll() {
+    window.removeEventListener('wheel', blockScroll);
+    window.removeEventListener('touchmove', blockScroll);
+    window.removeEventListener('keydown', blockKeys);
+  }
+
   function finish() {
+    unlockScroll();
     document.documentElement.classList.remove('preloader-active');
     window.preloaderFinished = true;
     window.dispatchEvent(new CustomEvent('preloader:complete'));
@@ -243,6 +270,7 @@ export function initPreloader() {
   placeLetters(letters);
 
   document.documentElement.classList.add('preloader-active');
+  lockScroll();
   preloader.classList.remove('is-complete');
   preloader.classList.add('is-loading');
 

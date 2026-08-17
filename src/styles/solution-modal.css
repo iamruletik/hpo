@@ -192,6 +192,10 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
 
 /* Modal */
 
+/* This modal's close button keeps .solution-modal-close. The platform modal's
+   button — the Webflow element that also carried this name — was renamed to
+   .solutions-close instead, so the two no longer share styling. */
+
 .solution-modal {
   position: fixed;
   inset: 0;
@@ -237,12 +241,28 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
 .solution-modal-panel-bg {
   position: absolute;
   z-index: 0;
-  inset: 0;
+  inset: 1rem;
   border-radius: inherit;
   background: #fff;
   transform-origin: right center;
   will-change: transform;
+  display: none;
 }
+
+/* Explicitly shown above 991. The panel background is hidden at 991 and below,
+   and Webflow breakpoints cascade downward — so a rule meant for tablet applies
+   to desktop too if it lands on the base breakpoint by mistake. This pins the
+   desktop case regardless of which one it was set on.
+
+   GSAP scales this element open (scaleX 0.018 -> 1 from the right edge), so it
+   has to be a real box on desktop, not display: none. */
+@media screen and (min-width: 992px) {
+  .solution-modal-panel-bg {
+    display: block;
+  }
+}
+
+
 
 .solution-modal-content-mask {
   position: absolute;
@@ -251,6 +271,15 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
   overflow: hidden;
   border-radius: inherit;
   will-change: clip-path;
+  left: 1rem;
+    right: 1rem;
+}
+
+@media screen and (max-width: 991px) {
+  .solution-modal-content-mask {
+    inset: auto 1rem 1rem 1rem;
+  }
+
 }
 
 .solution-modal-inner {
@@ -301,6 +330,11 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
 .solution-modal-close:hover {
   rotate: 90deg;
   scale: 0.8;
+}
+
+.close-button-svg {
+  /* Was .close-button-svg, a Webflow class shared with the other popup. */
+  width: 16px;
 }
 
 .solution-modal-close:active {
@@ -419,12 +453,13 @@ body.solution-modal-lock {
     bottom: 8vh;
     left: 5vw;
     width: 38vw;
-    min-width: 220px;
+    /*min-width: 220px;*/
   }
 
   .solution-image-stage {
-    height: 320px;
-    border-radius: 20px;
+    height: 180px;
+        border-radius: 12px;
+        width: 140px;
   }
 
   /* .solutions-title-list tablet override also lives in Webflow now. */
@@ -438,6 +473,7 @@ body.solution-modal-lock {
     top: auto;
     right: 0;
     bottom: 0;
+    left: 0;
     width: 100%;
     height: 86vh;
     border-radius: 32px 32px 0 0;
@@ -448,8 +484,8 @@ body.solution-modal-lock {
   }
 
   .solution-modal-close {
-    top: 4rem;
-    right: 4rem;
+    top: 24px;
+    right: 24px;
     width: 4rem;
     height: 4rem;
     font-size: 28px;
@@ -471,7 +507,7 @@ body.solution-modal-lock {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 991px) {
   .solutions-scroll {
     height: var(--solutions-scroll-height-mobile, 500vh);
   }
@@ -503,9 +539,7 @@ body.solution-modal-lock {
     font-size: 14px;
   }
 
-  .solutions-title-list {
-    top: 10rem;
-  }
+
 
   .solution-title-line {
     font-size: 2.5rem;
@@ -516,19 +550,22 @@ body.solution-modal-lock {
     width: 0.3rem;
   }
 
-  .solution-modal-panel {
-    height: min(90vh, 820px);
-  }
-
   .solution-modal-inner {
-    padding: 32px 20px;
+    padding: 32px;
+    height: auto;
+    background-color: white;
+    border-radius: 24px;
   }
 
+  /* Absolute, not static: it pins to .solution-modal-inner, which is
+     position: relative. It used to drop into the flow and centre itself here. */
   .solution-modal-close {
-    top: 20px;
-    right: 20px;
+    position: absolute;
+    top: 24px;
+    right: 24px;
     width: 48px;
     height: 48px;
+    align-self: auto;
   }
 
   .solution-modal-meta {

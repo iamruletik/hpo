@@ -59,13 +59,26 @@ function runEarly() {
   //     .overview_lower are visibility:hidden) and nothing else reveals them.
   initSolutionCarousel();
   initOverviewReveal();
+
+  // The big one. tabs.js toggles .is-hidden on every platform CMS item, and
+  // .is-hidden is display:none — so until it runs, ALL cards render and
+  // .section_platform-explorer is far taller than it should be. Deferred, that
+  // collapse landed after the curtains opened and shoved every section below it
+  // upward: solutions, aim, slider, footer. That is the global jump.
+  initTabs();
+
+  // Also layout-changing, and below the fold rather than above it: timeline.js
+  // measures the history slider and writes --history-height on the section.
+  // Deferred, that landed after the curtains opened and changed the document
+  // height — if the new document is shorter than the current scroll position
+  // the browser clamps the scroll, which reads as the whole page jumping no
+  // matter which section you happen to be looking at.
+  initTimeline();
 }
 
 const DEFERRED = [
   initFootIcon,
   initMorphSvgAim,
-  initTimeline,
-  initTabs,
   initCtaParallax,
   initEveryChamberReveal,
   initNavProgress,

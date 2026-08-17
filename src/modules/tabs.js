@@ -9,11 +9,14 @@ function normalizeIndex(index, length) {
 }
 
 export function initTabs() {
-  // Runs via Webflow's own ready queue rather than our defer/module timing,
-  // since this code depends on Webflow's CMS-bound markup (.w-dyn-item) being
-  // fully rendered first — a real cross-library ordering need, not dead code.
-  window.Webflow ||= [];
-  window.Webflow.push(() => {
+  // Runs immediately rather than through window.Webflow.push. Collection markup
+  // (.w-dyn-item) is server-rendered, so it already exists by the time this
+  // module evaluates — main.js is a module script and therefore deferred. The
+  // queue only guaranteed Webflow's own IX2 was ready, which nothing here needs,
+  // and it meant the card filtering ran at a time we did not control: every CMS
+  // card stayed visible until then, so .section_platform-explorer was far too
+  // tall and everything below it jumped when it finally collapsed.
+  (() => {
     const platformRoot = document.querySelector('[data-platform]');
     if (!platformRoot || platformRoot.dataset.platformInitialized === 'true') return;
     platformRoot.dataset.platformInitialized = 'true';
@@ -102,6 +105,12 @@ export function initTabs() {
         item.classList.toggle('is-hidden', !isVisible);
         card.classList.toggle('is-hidden', !isVisible);
       });
+
+      // Tells CSS the filtering is real now. Until this attribute exists the
+      // page-head rule keeps every card hidden, so the browser never paints the
+      // full unfiltered collection — that was the tab flash, and the height it
+      // occupied was what shoved every section below it.
+      platformRoot.setAttribute('data-platform-filtered', '');
     }
 
     function getVisibleCards() {
@@ -388,5 +397,5 @@ export function initTabs() {
 
     if (document.fonts?.ready) document.fonts.ready.then(bindInteractions);
     else bindInteractions();
-  });
+  })();
 }

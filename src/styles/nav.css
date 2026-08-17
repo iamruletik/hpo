@@ -177,3 +177,12 @@
 .nav_logo-img path {
   fill: #ffffff !important;
 }
+
+/* There are two .nav_buttons groups — one in the header, one in the footer's
+   upper-left. Scoping to .header keeps this off the footer's Request Demo,
+   which stays visible at every width. */
+@media screen and (max-width: 991px) {
+  .header .nav_buttons .demo-button-css {
+    display: none;
+  }
+}

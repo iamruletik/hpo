@@ -157,19 +157,30 @@ export function initFooterSequence() {
     requestAnimationFrame(tick);
   }
 
-  function onPointerMove(event) {
-    if (event.pointerType === 'touch') return;
-
-    // Horizontal position across the viewport scrubs the sequence; the same
-    // pointer drives the drift so the two never fight each other.
-    const positionX = event.clientX / window.innerWidth;
-    const positionY = event.clientY / window.innerHeight;
+  // Horizontal position across the viewport scrubs the sequence; the same
+  // point drives the drift so the two never fight each other.
+  function aimAt(clientX, clientY) {
+    const positionX = clientX / window.innerWidth;
+    const positionY = clientY / window.innerHeight;
 
     targetFrame = Math.max(0, Math.min(1, positionX)) * (FRAME_COUNT - 1);
     targetDriftX = (positionX - 0.5) * 2 * DRIFT;
     targetDriftY = (positionY - 0.5) * 2 * DRIFT;
 
     requestTick();
+  }
+
+  function onPointerMove(event) {
+    // Touch is handled separately below — pointer events for touch stop firing
+    // the moment the browser claims the gesture for scrolling.
+    if (event.pointerType === 'touch') return;
+    aimAt(event.clientX, event.clientY);
+  }
+
+  function onTouch(event) {
+    const touch = event.touches[0];
+    if (!touch) return;
+    aimAt(touch.clientX, touch.clientY);
   }
 
   whenPreloaderDone(() => {
@@ -198,6 +209,14 @@ export function initFooterSequence() {
   }
 
   window.addEventListener('pointermove', onPointerMove, { passive: true });
+
+  // There is no hover on a phone, so the finger is the pointer: wherever it
+  // lands and however it drags — including the swipe that scrolls the page —
+  // scrubs the sequence. touchstart as well as touchmove, so a tap alone moves
+  // it. Passive: these never call preventDefault, and marking them so keeps
+  // them out of the scroll's critical path.
+  window.addEventListener('touchstart', onTouch, { passive: true });
+  window.addEventListener('touchmove', onTouch, { passive: true });
 
   // Rises out from behind the section's clipped edge once the footer is well
   // into view. Plays on its own timing rather than scrubbing, so the entrance

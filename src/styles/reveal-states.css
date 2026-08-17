@@ -1,0 +1,81 @@
+/* Initial states for scroll reveals.
+   ==========================================================================
+   Every one of these animations begins with a gsap.set() or a fromTo() that
+   only runs when its module initialises — which is after the preloader lifts.
+   Until then the element paints in its FINAL state, so reloading on one of
+   these sections showed the content, then snapped it back to the start and
+   animated it in.
+
+   The start state has to be declared here so it is true from the first frame.
+   Each module clears the visibility once it has built its split/mask, so a JS
+   failure is the only way anything stays hidden.
+
+   Below-the-fold only — this file rides in main.css, which is late in dev. The
+   preloader's own states cannot live here; see the Webflow head. */
+
+/* ---- .section_every-chamber --------------------------------------------- */
+
+/* SplitType wraps these in .word spans which then rise from yPercent: 100. */
+.every-chamber-center,
+.every-chamber-copy {
+  visibility: hidden;
+}
+
+/* .every-chamber-copy is clipped by Webflow; .ec-text is not, so its parked
+   words had nothing hiding them. Padding keeps descenders off the clip edge and
+   the negative margin takes it back out of the layout. */
+.ec-text {
+  overflow: hidden;
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+
+/* drawSVG animates stroke-dasharray from 0%. A zero-length dash with an
+   enormous gap draws nothing, which is the same thing one frame earlier and
+   without waiting for GSAP. */
+.scroll-line-path {
+  stroke-dasharray: 0 100000;
+}
+
+/* ---- .section_aim -------------------------------------------------------- */
+
+/* title-line-reveal splits both of these into masked lines and parks them at
+   yPercent: 100. Until that runs they would paint in place. */
+.aim_title,
+.aim_copy {
+  visibility: hidden;
+}
+
+/* morph-svg-aim positions each card with gsap.set(y: CARD_STATE_1[i]) — an
+   index-dependent value CSS cannot express, so the cards simply stay hidden
+   until that set has run. */
+.aim-card {
+  visibility: hidden;
+}
+
+/* ---- .section_cta -------------------------------------------------------- */
+
+.cta_title,
+.cta_s-copy,
+.cta_last-copy,
+/* Faded in by cta-reveal; declared here so it is not on screen for the frame
+   before that runs. */
+.cta_content-wrapper .demo-button-css,
+.cta_content-wrapper .demo-button {
+  visibility: hidden;
+}
+
+/* Matches gsap.set(contentWrapper, { yPercent: 20 }). Declared rather than set,
+   so the wrapper is already offset when the section first paints. */
+.cta_content-wrapper {
+  transform: translateY(20%);
+}
+
+/* ---- footer -------------------------------------------------------------- */
+
+/* footer-reveal wraps these in .footer-reveal-mask at init; before that they
+   sit in place fully visible. .footer-title is handled in footer-scene.css. */
+.section_footer .footer-link,
+.section_footer .scroll-down-wrap.is-f {
+  visibility: hidden;
+}

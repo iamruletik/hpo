@@ -63,6 +63,9 @@ export function initFooterReveal() {
 
   if (!singleLine.length) return;
 
+  // CSS hides these until their masks exist; see reveal-states.css.
+  gsap.set(singleLine, { visibility: 'visible' });
+
   gsap.fromTo(
     singleLine,
     { yPercent: 110 },

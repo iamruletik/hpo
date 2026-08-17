@@ -903,47 +903,6 @@ function setupSolutionsSection(section, sharedModal) {
   // adopt it before the first paint rather than starting at 0 and easing there.
   goToIndex(Math.round(sectionTrigger.progress * (count - 1)), true);
 
-  // TEMPORARY DIAGNOSTIC — delete once the reload jump is pinned down.
-  // Logs every time the title list actually moves, with the state at that
-  // moment, so the timestamp tells us which actor did it.
-  {
-    let lastTop = null;
-    let lastDocH = null;
-    let lastSectionTop = null;
-
-    const watch = () => {
-      const docH = document.documentElement.scrollHeight;
-      const sectionTop = Math.round(section.getBoundingClientRect().top + window.scrollY);
-
-      if (lastDocH !== null && Math.abs(docH - lastDocH) > 2) {
-        console.log(
-          `[reflow] ${performance.now().toFixed(0)}ms  docH ${lastDocH}→${docH}` +
-            `  sectionTop ${lastSectionTop}→${sectionTop}`,
-        );
-      }
-      lastDocH = docH;
-      lastSectionTop = sectionTop;
-
-      const top = Math.round(titleList.getBoundingClientRect().top);
-      if (lastTop !== null && Math.abs(top - lastTop) > 2) {
-        const sticky = section.querySelector('.solutions-sticky');
-        const stickyRect = sticky.getBoundingClientRect();
-        const listStyle = getComputedStyle(titleList);
-        const stickyStyle = getComputedStyle(sticky);
-
-        console.log(
-          `[carousel] ${performance.now().toFixed(0)}ms  listTop ${lastTop}→${top}` +
-            `  | list: pos=${listStyle.position} top=${listStyle.top} h=${Math.round(titleList.getBoundingClientRect().height)} transform=${listStyle.transform}` +
-            `  | sticky: pos=${stickyStyle.position} top=${Math.round(stickyRect.top)} h=${Math.round(stickyRect.height)}` +
-            `  | index=${activeIndex} progress=${sectionTrigger ? sectionTrigger.progress.toFixed(3) : 'n/a'}`,
-        );
-      }
-      lastTop = top;
-      requestAnimationFrame(watch);
-    };
-    requestAnimationFrame(watch);
-  }
-
   // Settle on genuine user intent rather than `load`. ScrollTrigger refreshes
   // — and the snap that rides along with them — can fire well after load, so a
   // time-based flag still lets the initial snap through. Nothing needs to
@@ -983,20 +942,25 @@ function setupSolutionsSection(section, sharedModal) {
 }
 
 export function initSolutionCarousel() {
-  window.Webflow ||= [];
-  window.Webflow.push(async () => {
-    if (document.fonts?.ready) {
-      try {
-        await document.fonts.ready;
-      } catch (error) {
-        console.warn('Fonts ready error:', error);
-      }
-    }
+  // Runs synchronously. This used to sit behind window.Webflow.push AND
+  // `await document.fonts.ready`, which meant it built the section at a time
+  // nobody controlled — long after main.js, and in practice after the preloader
+  // had already lifted. Since it wipes and rebuilds .solution-image-stage and
+  // .solutions-title-list and sets the section height, that rebuild was a
+  // layout change happening in full view.
+  //
+  // Neither wrapper was needed: the CMS markup is server-rendered, and main.js
+  // is a module script so the DOM is parsed by the time this evaluates.
+  const sections = document.querySelectorAll('.solutions-scroll');
+  if (!sections.length) return;
 
-    const sections = document.querySelectorAll('.solutions-scroll');
-    if (!sections.length) return;
+  const modal = getOrCreateModal();
+  sections.forEach((section) => setupSolutionsSection(section, modal));
 
-    const modal = getOrCreateModal();
-    sections.forEach((section) => setupSolutionsSection(section, modal));
+  // Text measurements taken before the webfonts swap are wrong, so re-measure
+  // once they land. The preloader also waits on document.fonts.ready, so this
+  // still resolves while the curtains are down.
+  document.fonts?.ready?.then(() => {
+    window.dispatchEvent(new Event('resize'));
   });
 }

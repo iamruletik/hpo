@@ -8,7 +8,7 @@ export function initHeroVideoParallax() {
   // is set to visibility:false in Webflow, so it is absent from the rendered
   // page. A document-wide query therefore matched the aim embed instead and
   // parallaxed it against the wrong wrapper, leaving it at translateY(-16px).
-  const videoEmbed = videoWrapper.querySelector('.hero-video-embed');
+  const videoEmbed = videoWrapper?.querySelector('.hero-video-embed');
 
   if (!sectionHero || !videoWrapper || !videoEmbed) return;
 

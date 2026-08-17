@@ -160,3 +160,41 @@
 body.is-platform-modal-open {
   overflow: hidden;
 }
+
+/* Mobile: the two .platform-modal-column blocks are 80vw each and have to be
+   draggable sideways. Touch dragging is native scrolling, so no JS — just an
+   overflow container with the scrollbar suppressed.
+
+   Webflow gives .platform-modal-content `width: max-content` at this
+   breakpoint, which makes it grow to fit both columns — so there is nothing to
+   scroll *inside* it. Constraining it back to 100% is what turns it into the
+   scroller. It also still inherits `grid-template-columns: 1fr 1fr` from the
+   desktop rule, which caps the row at two equal tracks inside that width;
+   auto-flow columns sized to their content is what actually lets them overflow.
+
+   overscroll-behavior stops a swipe that reaches the end from chaining to the
+   page behind the modal. */
+@media screen and (max-width: 991px) {
+  .platform-modal-content {
+    width: 100%;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .platform-modal-content::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* The platform modal's close button is .solutions-close / .solutions-close-icon
+   and is styled entirely in the Webflow Designer. Nothing for it here on
+   purpose — it shared .solution-modal-close with the solution modal's button
+   until now, and a repo copy would just recreate the same double-owner problem
+   from the other side. */

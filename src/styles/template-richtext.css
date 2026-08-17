@@ -1,0 +1,97 @@
+/* Typography for the Templates CMS collection's dynamic page (Cookie Policy et
+   al). Layout (2-col desktop / 1-col mobile grid) lives on the Webflow classes
+   .section_template / .template-content_left / .template-content_right —
+   this file only styles what the CMS rich text field renders inside
+   .template-richtext, per the Figma spec (node 1297:1409 desktop /
+   1297:1444 mobile).
+
+   Sizes are in rem against the site's fluid root font-size (base.css:
+   1rem == 16px at a 1920px viewport, scaling continuously with vw below
+   that) so this matches how every other section on the site scales. */
+
+.template-headline {
+  font-family: 'Helvetica Now Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 4rem; /* 64px */
+  line-height: 1.2;
+  color: #000;
+}
+
+.template-richtext {
+  font-family: 'Helvetica Now Display', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #000;
+}
+
+.template-richtext h1,
+.template-richtext h2,
+.template-richtext h3,
+.template-richtext h4,
+.template-richtext h5,
+.template-richtext h6 {
+  font-weight: 700;
+  font-size: 3rem; /* 48px */
+  line-height: 1.2;
+  margin-top: 4.5rem; /* 72px — gap between stacked rich-text sections */
+  margin-bottom: 1.5rem; /* 24px — gap between a section's title and body */
+}
+
+.template-richtext > :first-child {
+  margin-top: 0;
+}
+
+.template-richtext p {
+  font-weight: 500;
+  font-size: 1.5rem; /* 24px */
+  line-height: 1.2;
+  margin-top: 0;
+  margin-bottom: 1.5rem; /* 24px */
+}
+
+.template-richtext ul,
+.template-richtext ol {
+  font-weight: 500;
+  font-size: 1.5rem; /* 24px */
+  line-height: 1.2;
+  margin-top: 0;
+  margin-bottom: 1.5rem; /* 24px */
+  padding-left: 1.5rem;
+}
+
+.template-richtext li {
+  margin-bottom: 0;
+}
+
+.template-richtext p:last-child,
+.template-richtext ul:last-child,
+.template-richtext ol:last-child {
+  margin-bottom: 0;
+}
+
+.template-richtext a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+@media screen and (max-width: 991px) {
+  .template-headline {
+    font-size: 2rem; /* 32px */
+  }
+
+  .template-richtext h1,
+  .template-richtext h2,
+  .template-richtext h3,
+  .template-richtext h4,
+  .template-richtext h5,
+  .template-richtext h6 {
+    font-size: 1.75rem; /* 28px */
+    margin-top: 3rem; /* 48px */
+    margin-bottom: 1rem; /* 16px */
+  }
+
+  .template-richtext p,
+  .template-richtext ul,
+  .template-richtext ol {
+    font-size: 1.125rem; /* 18px */
+    margin-bottom: 1rem; /* 16px */
+  }
+}

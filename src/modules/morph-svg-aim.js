@@ -46,6 +46,8 @@ export function initMorphSvgAim() {
     y: (index) => CARD_STATE_1[index],
     force3D: true,
     willChange: 'transform',
+    // CSS hides .aim-card until this set has run; see reveal-states.css.
+    visibility: 'visible',
   });
 
   // 0–50vh: State 1 → State 2, 50–51vh: pause, 51–121vh: State 2 → State 3
