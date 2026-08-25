@@ -21,11 +21,24 @@
   visibility: hidden;
 }
 
-/* .every-chamber-copy is clipped by Webflow; .ec-text is not, so its parked
-   words had nothing hiding them. Padding keeps descenders off the clip edge and
-   the negative margin takes it back out of the layout. */
+/* .ec-text-wrapper > .ec-text-container > .ec-text — three nested
+   overflow:hidden layers (Webflow's row mask, Webflow's flex centering
+   wrapper, and the SplitType target this file adds overflow to). Each one
+   clips its own content independently; fixing an inner element does nothing
+   for an ancestor's own clip, so the same padding/negative-margin
+   compensation has to be repeated at every layer or descenders get cut by
+   whichever one is still missing it. */
 .ec-text {
   overflow: hidden;
+  padding-bottom: 0.16em;
+}
+
+.ec-text-container {
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+
+.ec-text-wrapper {
   padding-bottom: 0.16em;
   margin-bottom: -0.16em;
 }

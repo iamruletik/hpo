@@ -25,6 +25,7 @@ import { initOverviewReveal } from './modules/overview-reveal.js';
 import { initBodyThemeScroll } from './modules/body-theme-scroll.js';
 import { initFooterSequence } from './modules/footer-sequence.js';
 import { initFooterReveal } from './modules/footer-reveal.js';
+import { initSafariBlurDisable } from './modules/safari-blur-disable.js';
 
 // Startup runs in two phases.
 //
@@ -38,6 +39,10 @@ import { initFooterReveal } from './modules/footer-reveal.js';
 // interaction-only and can wait.
 
 function runEarly() {
+  // Synchronous DOM removal, no dependencies — runs before anything else so
+  // Safari never even paints the blur stack once, let alone pays for it on
+  // scroll.
+  initSafariBlurDisable();
   initLenis();
   initHeroVideoParallax();
   initHeroTextSplit();
@@ -74,10 +79,18 @@ function runEarly() {
   // the browser clamps the scroll, which reads as the whole page jumping no
   // matter which section you happen to be looking at.
   initTimeline();
+
+  // Not deferred, deliberately: this sets .src and calls .load() on the
+  // every-chamber icon videos immediately, so the fetch overlaps the
+  // preloader sequence instead of starting only once the section scrolls
+  // into view. Kicking off a video download behind a lazy scroll trigger
+  // defeats the point of having a preloader in the first place — it just
+  // moves the network stall from "before the curtain opens" (where it's
+  // hidden) to "the moment the user actually gets there" (where it isn't).
+  initFootIcon();
 }
 
 const DEFERRED = [
-  initFootIcon,
   initMorphSvgAim,
   initCtaParallax,
   initEveryChamberReveal,

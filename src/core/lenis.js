@@ -8,6 +8,17 @@ export function initLenis() {
 
   lenis?.destroy();
 
+  const preloaderActive = document.documentElement.classList.contains('preloader-active');
+
+  // Lenis reads the native scroll position once, at construction, into
+  // targetScroll/animatedScroll — so if anything nudged the page before this
+  // ran, Lenis would adopt that as its own "home" position instead of 0 and
+  // .stop() below would freeze it there rather than at the top. Force native
+  // scroll to (0, 0) first so Lenis's initial read is already correct.
+  if (preloaderActive) {
+    window.scrollTo(0, 0);
+  }
+
   lenis = new Lenis({
     lerp: 0.085,
     smoothWheel: true,
@@ -24,6 +35,18 @@ export function initLenis() {
   });
 
   window.lenis = lenis;
+
+  // preloader.js blocks native scroll by swallowing wheel/touchmove, but that
+  // only calls preventDefault() — it doesn't stop Lenis's own wheel listener,
+  // which is registered independently (later, since this module initialises
+  // after preloader-entry.js) and drives scroll itself regardless of another
+  // listener's preventDefault. Without this, the page could still smooth-
+  // scroll under the curtain. preloader.js flips 'preloader-active' on
+  // <html> synchronously before this runs, so the check is reliable; it
+  // calls lenis.start() again once the curtain lifts.
+  if (preloaderActive) {
+    lenis.stop();
+  }
 
   lenis.on('scroll', ScrollTrigger.update);
   gsap.ticker.add((time) => lenis.raf(time * 1000));

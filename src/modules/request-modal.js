@@ -1,4 +1,5 @@
 import { gsap } from '../core/gsap.js';
+import { lockPageScroll, unlockPageScroll } from '../core/scroll-lock.js';
 
 const REQUIRED_FIELD_IDS = ['WorkEmail', 'FirstName', 'LastName', 'Company-Name'];
 
@@ -155,21 +156,13 @@ export function initRequestModal() {
     return isValid;
   }
 
-  function lockScroll() {
-    window.lenis?.stop?.();
-  }
-
-  function unlockScroll() {
-    window.lenis?.start?.();
-  }
-
   function openModal(trigger = null) {
     if (isOpen) return;
     isOpen = true;
     isClosing = false;
     previouslyFocusedElement = trigger || document.activeElement;
 
-    lockScroll();
+    lockPageScroll();
     modal.style.display = 'flex';
     modal.style.visibility = 'visible';
     modal.setAttribute('aria-hidden', 'false');
@@ -198,7 +191,7 @@ export function initRequestModal() {
     modal.style.visibility = 'hidden';
     modal.style.opacity = '0';
     modal.setAttribute('aria-hidden', 'true');
-    unlockScroll();
+    unlockPageScroll();
     isOpen = false;
     isClosing = false;
     previouslyFocusedElement?.focus?.({ preventScroll: true });

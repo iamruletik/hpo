@@ -57,6 +57,16 @@
   will-change: transform;
 }
 
+/* .scroll-down-wrap is a flex icon+text row, not the plain inline text this
+   mask was built for (footer-link, back-to-top's own text). The > * rule
+   above downgrades it to inline-block, same specificity as Designer's
+   display: flex but injected later — so it wins the tie and the icon drops
+   back into text flow instead of sitting beside the label. */
+.footer-reveal-mask > .scroll-down-wrap {
+  display: flex;
+  will-change: transform;
+}
+
 .footer-scene__glow {
   position: absolute;
   pointer-events: none;

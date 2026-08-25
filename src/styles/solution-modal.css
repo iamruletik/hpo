@@ -310,12 +310,7 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
   color: #050505;
   appearance: none;
   cursor: pointer;
-  transition:
-    rotate 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-    scale 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  rotate: 0deg;
-  scale: 1;
-  will-change: transform, rotate, scale, opacity;
+  will-change: transform, opacity;
 }
 
 .solution-modal-close:focus {
@@ -327,18 +322,21 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
   outline-offset: 3px;
 }
 
-.solution-modal-close:hover {
-  rotate: 90deg;
-  scale: 0.8;
-}
+/* No :hover/:active transform rules here, deliberately — bindCloseHoverEffects
+   in solution-carousel.js already drives rotation/scale on this element via
+   GSAP (which writes to the transform property), on mouseenter/mouseleave
+   AND pointerdown/pointerup. CSS's individual rotate/scale properties
+   compose ON TOP OF transform rather than being overridden by it, so having
+   both meant two sources fighting over the same rotation — mostly invisible
+   on desktop where hover and the JS state stay in sync, but mobile Safari
+   famously leaves :hover stuck after a tap, so the CSS's 90deg stayed
+   latched on independent of whatever GSAP had already settled to, and the
+   two partial rotations composed into the "rotated a bit" that showed up
+   there. JS already covers touch correctly via pointerdown/pointerup. */
 
 .close-button-svg {
   /* Was .close-button-svg, a Webflow class shared with the other popup. */
   width: 16px;
-}
-
-.solution-modal-close:active {
-  scale: 0.72;
 }
 
 .solution-modal-meta {
@@ -494,6 +492,11 @@ body.solution-modal-lock {
   .solution-modal-meta {
     margin-bottom: 56px;
     padding-right: 72px;
+  }
+
+  .solution-modal-meta-label,
+  .solution-modal-dot {
+    display: none;
   }
 
   .solution-modal-title {

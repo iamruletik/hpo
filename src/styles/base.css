@@ -19,6 +19,11 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Mobile Safari auto-inflates text on rotate to landscape unless told not to. */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
   display: none;

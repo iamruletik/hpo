@@ -120,7 +120,7 @@
 .platform-modal {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 9;
   display: none;
 }
 
@@ -186,6 +186,11 @@ body.is-platform-modal-open {
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    /* Content is rich text — a horizontal drag over it reads as a text-
+       selection gesture on touch instead of a scroll, same reason
+       .history_track has this in slider.css. */
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .platform-modal-content::-webkit-scrollbar {

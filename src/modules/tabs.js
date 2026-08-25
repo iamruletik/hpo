@@ -30,12 +30,17 @@ export function initTabs() {
     const heroTitle = platformRoot.querySelector('[data-hero-title]');
     const prevButton = platformRoot.querySelector('[data-layer-prev]');
     const nextButton = platformRoot.querySelector('[data-layer-next]');
+    const layerLabel = platformRoot.querySelector('.platform-hero-top-label');
 
     const modal = document.querySelector('[data-modal]');
     const modalOverlay = document.querySelector('[data-modal-overlay]');
     const modalClose = document.querySelector('[data-modal-close]');
     const modalPanel = modal ? modal.querySelector('.platform-modal-panel') : null;
-    const modalImage = document.querySelector('[data-modal-render-image]');
+    // Two elements share this attribute — the desktop image and the mobile
+    // one (.platfrom-modal-mobile-image-container, sic) — so every render
+    // target has to be updated, not just the first match.
+    const modalImages = Array.from(document.querySelectorAll('[data-modal-render-image]'));
+    const mobileImage = modal ? modal.querySelector('.platfrom-modal-mobile-image') : null;
     const modalTitle = document.querySelector('[data-modal-render-title]');
     const modalClientBullets = document.querySelector('[data-modal-render-client-bullets]');
     const modalCompanyBullets = document.querySelector('[data-modal-render-company-bullets]');
@@ -87,6 +92,13 @@ export function initTabs() {
         mask.appendChild(line);
       });
       gsap.set(heroTitleSplit.lines, { yPercent: 0, opacity: 1 });
+    }
+
+    // tabs is sorted ascending by data-layer-index, so its array position
+    // already matches display order regardless of whether that attribute is
+    // authored 0- or 1-based.
+    function updateLayerLabel(index) {
+      if (layerLabel) layerLabel.textContent = `LAYER ${index + 1}`;
     }
 
     function setActiveTabUI(activeIndex) {
@@ -145,6 +157,7 @@ export function initTabs() {
         defaults: { ease: 'power3.out' },
         onComplete: () => {
           updateHeroTitle(currentIndex);
+          updateLayerLabel(currentIndex);
           setActiveCards(currentIndex);
 
           const inLines = getHeroTitleLines();
@@ -178,7 +191,7 @@ export function initTabs() {
       const columns = Array.from(modal.querySelectorAll('.platform-modal-column'));
       const titleLines = modalTitleSplit ? modalTitleSplit.lines : [];
       const listItems = Array.from(modal.querySelectorAll('[data-modal-render-client-bullets] li, [data-modal-render-company-bullets] li'));
-      const toKill = [modalOverlay, modalPanel, ...columns, ...titleLines, ...listItems].filter(Boolean);
+      const toKill = [modalOverlay, modalPanel, mobileImage, ...columns, ...titleLines, ...listItems].filter(Boolean);
       gsap.killTweensOf(toKill);
 
       modalTimeline = gsap.timeline({
@@ -189,6 +202,7 @@ export function initTabs() {
           revertModalTitleSplit();
           gsap.set(listItems, { clearProps: 'transform,opacity,visibility' });
           if (modalPanel) gsap.set(modalPanel, { clearProps: 'transform,opacity,visibility' });
+          if (mobileImage) gsap.set(mobileImage, { clearProps: 'opacity' });
           modalTimeline = null;
           lastFocusedCard?.focus?.({ preventScroll: true });
           lastFocusedCard = null;
@@ -203,6 +217,9 @@ export function initTabs() {
       }
       if (modalPanel) {
         modalTimeline.to(modalPanel, { y: window.innerWidth <= 768 ? 24 : 42, autoAlpha: 0, duration: 0.36, ease: 'power3.in' }, 0);
+      }
+      if (mobileImage) {
+        modalTimeline.to(mobileImage, { opacity: 0, duration: 0.25, ease: 'power2.in' }, 0);
       }
       if (modalOverlay) {
         modalTimeline.to(modalOverlay, { opacity: 0, duration: 0.3, ease: 'power2.out' }, 0.08);
@@ -227,21 +244,23 @@ export function initTabs() {
         modalTitle.innerHTML = titleAttr || (dataTitle ? dataTitle.innerHTML : '') || (cardTitle ? cardTitle.innerHTML : '');
       }
 
-      if (modalImage) {
+      if (modalImages.length) {
         const sourceImage = dataImage || cardImage;
-        if (sourceImage) {
-          modalImage.src = sourceImage.currentSrc || sourceImage.src || '';
-          modalImage.alt = sourceImage.alt || '';
-          if (sourceImage.srcset) modalImage.srcset = sourceImage.srcset;
-          else modalImage.removeAttribute('srcset');
-          if (sourceImage.sizes) modalImage.sizes = sourceImage.sizes;
-          else modalImage.removeAttribute('sizes');
-        } else {
-          modalImage.removeAttribute('src');
-          modalImage.removeAttribute('srcset');
-          modalImage.removeAttribute('sizes');
-          modalImage.alt = '';
-        }
+        modalImages.forEach((modalImage) => {
+          if (sourceImage) {
+            modalImage.src = sourceImage.currentSrc || sourceImage.src || '';
+            modalImage.alt = sourceImage.alt || '';
+            if (sourceImage.srcset) modalImage.srcset = sourceImage.srcset;
+            else modalImage.removeAttribute('srcset');
+            if (sourceImage.sizes) modalImage.sizes = sourceImage.sizes;
+            else modalImage.removeAttribute('sizes');
+          } else {
+            modalImage.removeAttribute('src');
+            modalImage.removeAttribute('srcset');
+            modalImage.removeAttribute('sizes');
+            modalImage.alt = '';
+          }
+        });
       }
 
       if (modalClientBullets) modalClientBullets.innerHTML = dataClientBullets ? dataClientBullets.innerHTML : '';
@@ -254,6 +273,16 @@ export function initTabs() {
       modal.classList.add('is-open');
       modal.setAttribute('aria-hidden', 'false');
       document.body.classList.add('is-platform-modal-open');
+      // Deliberately not calling lockPageScroll() here — it pins body via
+      // position: fixed, which zeroes out window.scrollY for as long as
+      // it's active. Every scroll-driven ScrollTrigger scrub sitewide
+      // (nav-progress-fill among them) reads that as "scrolled to the top"
+      // and snaps to its start state, which is what made the nav progress
+      // bar disappear whenever this modal opened. Background scroll is only
+      // soft-blocked by body.is-platform-modal-open's overflow: hidden now
+      // (platform-explorer.css) — Lenis can still scroll past it, a
+      // deliberate tradeoff to keep the rest of the page's scroll-tied
+      // chrome intact while the modal is open.
 
       let titleLines = [];
       if (modalTitle && modalTitle.textContent.trim()) {
@@ -269,11 +298,12 @@ export function initTabs() {
 
       const columns = Array.from(modal.querySelectorAll('.platform-modal-column'));
       const listItems = Array.from(modal.querySelectorAll('[data-modal-render-client-bullets] li, [data-modal-render-company-bullets] li'));
-      const toKill = [modalOverlay, modalPanel, ...columns, ...titleLines, ...listItems].filter(Boolean);
+      const toKill = [modalOverlay, modalPanel, mobileImage, ...columns, ...titleLines, ...listItems].filter(Boolean);
       gsap.killTweensOf(toKill);
 
       if (modalOverlay) gsap.set(modalOverlay, { opacity: 0 });
       if (modalPanel) gsap.set(modalPanel, { y: window.innerWidth <= 768 ? 32 : 56, autoAlpha: 0 });
+      if (mobileImage) gsap.set(mobileImage, { opacity: 0 });
       gsap.set(titleLines, { yPercent: 110, autoAlpha: 0.8 });
       gsap.set(listItems, { y: 12, autoAlpha: 0 });
 
@@ -286,6 +316,7 @@ export function initTabs() {
 
       if (modalOverlay) modalTimeline.to(modalOverlay, { opacity: 1, duration: 0.38, ease: 'power2.out' }, 0);
       if (modalPanel) modalTimeline.to(modalPanel, { y: 0, autoAlpha: 1, duration: 0.72, ease: 'power4.out' }, 0.02);
+      if (mobileImage) modalTimeline.to(mobileImage, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0.1);
       if (titleLines.length) modalTimeline.to(titleLines, { yPercent: 0, autoAlpha: 1, duration: 0.72, ease: 'power4.out', stagger: 0.08 }, 0.22);
       if (listItems.length) modalTimeline.to(listItems, { y: 0, autoAlpha: 1, duration: 0.45, ease: 'power3.out', stagger: 0.06 }, 0.4);
     }
@@ -293,6 +324,7 @@ export function initTabs() {
     function bindInteractions() {
       setActiveTabUI(currentIndex);
       updateHeroTitle(currentIndex);
+      updateLayerLabel(currentIndex);
       setActiveCards(currentIndex);
       enableNavButtons();
 

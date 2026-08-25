@@ -31,6 +31,10 @@
 .scroll-fill-line {
   display: block;
   overflow: hidden;
+  /* Same clipping-mask pattern as .ec-text etc. — overflow:hidden clips at
+     the padding edge, so descenders (y, g, p) need this to not get cut. */
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
 }
 
 .scroll-fill-line-inner {

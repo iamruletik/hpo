@@ -287,7 +287,7 @@ function getOrCreateModal() {
             </svg>
           </button>
           <div class="solution-modal-meta" data-modal-animate>
-            <span>WHO IS IT FOR ?</span>
+            <span class="solution-modal-meta-label">WHO IS IT FOR ?</span>
             <span class="solution-modal-dot"></span>
             <span class="solution-modal-category"></span>
           </div>
@@ -373,10 +373,22 @@ function openSolutionModal(modalEl, item) {
     titleLines = split.lines;
   }
 
+  // .solution-modal-panel-bg is display:none at <=991px (solution-modal.css)
+  // — "has to be a real box on desktop, not display:none" per the comment
+  // there — so animating it never did anything visible on mobile. The wipe
+  // actually visible on mobile is .solution-modal-content-mask's clip-path,
+  // which stays active at every width and reads the same "unroll from the
+  // right" way. That's the one that needs the opacity swap, not panelBg.
+  const isMobilePanel = window.innerWidth <= 991;
+
   gsap.killTweensOf([backdrop, panelBg, contentMask, ...animatedEls, ...titleLines, ...listItems]);
   gsap.set(backdrop, { opacity: 0 });
   gsap.set(panelBg, { scaleX: 0.018, transformOrigin: 'right center' });
-  gsap.set(contentMask, { clipPath: 'inset(0% 0% 0% 98.2%)' });
+  if (isMobilePanel) {
+    gsap.set(contentMask, { clipPath: 'inset(0% 0% 0% 0%)', opacity: 0 });
+  } else {
+    gsap.set(contentMask, { clipPath: 'inset(0% 0% 0% 98.2%)', opacity: 1 });
+  }
   gsap.set(animatedEls, { autoAlpha: 0, x: getResponsiveConfig('modal').open.contentShift });
   gsap.set(titleLines, { yPercent: 110, autoAlpha: 0.8 });
   gsap.set(listItems, { y: 12, autoAlpha: 0 });
@@ -401,7 +413,11 @@ function openSolutionModal(modalEl, item) {
 
   modalEl._timeline.to(backdrop, { opacity: 1, duration: openConfig.backdropDuration, ease: 'power2.out' }, 0);
   modalEl._timeline.to(panelBg, { scaleX: 1, duration: openConfig.backgroundDuration, ease: 'power4.out' }, 0.02);
-  modalEl._timeline.to(contentMask, { clipPath: 'inset(0% 0% 0% 0%)', duration: openConfig.maskDuration, ease: 'power4.out' }, 0.1);
+  if (isMobilePanel) {
+    modalEl._timeline.to(contentMask, { opacity: 1, duration: openConfig.maskDuration, ease: 'power4.out' }, 0.1);
+  } else {
+    modalEl._timeline.to(contentMask, { clipPath: 'inset(0% 0% 0% 0%)', duration: openConfig.maskDuration, ease: 'power4.out' }, 0.1);
+  }
   modalEl._timeline.to(
     animatedEls,
     { autoAlpha: 1, x: 0, duration: openConfig.contentDuration, ease: 'power3.out', stagger: { each: openConfig.contentStagger, from: 'start' } },
@@ -430,6 +446,8 @@ function closeSolutionModal(modalEl) {
   const animatedEls = Array.from(modalEl.querySelectorAll('[data-modal-animate]'));
   const titleLines = modalEl._titleSplit ? modalEl._titleSplit.lines : [];
   const listItems = content ? Array.from(content.querySelectorAll('li')) : [];
+
+  const isMobilePanel = window.innerWidth <= 991;
 
   modalEl._timeline?.kill();
   modalEl._timeline = null;
@@ -462,7 +480,11 @@ function closeSolutionModal(modalEl) {
   );
   modalEl._timeline.to(titleLines, { yPercent: 35, autoAlpha: 0, duration: 0.25, ease: 'power2.in', stagger: { each: 0.01, from: 'end' }, overwrite: true }, 0);
   modalEl._timeline.to(listItems, { y: 8, autoAlpha: 0, duration: 0.2, ease: 'power2.in', stagger: { each: 0.008, from: 'end' }, overwrite: true }, 0);
-  modalEl._timeline.to(contentMask, { clipPath: 'inset(0% 0% 0% 98.2%)', duration: closeConfig.maskDuration, ease: 'power3.inOut' }, 0.025);
+  if (isMobilePanel) {
+    modalEl._timeline.to(contentMask, { opacity: 0, duration: closeConfig.maskDuration, ease: 'power3.inOut' }, 0.025);
+  } else {
+    modalEl._timeline.to(contentMask, { clipPath: 'inset(0% 0% 0% 98.2%)', duration: closeConfig.maskDuration, ease: 'power3.inOut' }, 0.025);
+  }
   modalEl._timeline.to(panelBg, { scaleX: 0.018, duration: closeConfig.backgroundDuration, ease: 'power4.in' }, 0.025);
   modalEl._timeline.to(backdrop, { opacity: 0, duration: closeConfig.backdropDuration, ease: 'power2.out' }, 0.08);
 }
@@ -845,6 +867,17 @@ function setupSolutionsSection(section, sharedModal) {
   moreButton?.addEventListener('click', (event) => {
     event.preventDefault();
     if (activeIndex >= 0) openModalForIndex(activeIndex);
+  });
+
+  // Same "hovering this should read as hovering the More button" treatment
+  // as the active title line gets above — imageStage always shows the
+  // active slide, so no index guard is needed here the way the title
+  // buttons need one.
+  imageStage.addEventListener('mouseenter', () => {
+    moreButton?.classList.add('is-hovered');
+  });
+  imageStage.addEventListener('mouseleave', () => {
+    moreButton?.classList.remove('is-hovered');
   });
 
   // .solution-more is hidden on mobile — the whole card stands in for it

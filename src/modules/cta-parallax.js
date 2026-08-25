@@ -20,34 +20,23 @@ export function initCtaParallax() {
   // Mobile: the image does not move at all. The section simply holds still
   // while you scroll, which is what buys the beat before the copy arrives.
   //
-  // Default (position: fixed) pinning. 'transform' pinning was worse: it holds
-  // the element by translating it against the scroll, and under Lenis that
-  // translate trails the scroll by a frame, which is the gap — the section
-  // literally sits 606px too high for a moment.
+  // This used to be a GSAP ScrollTrigger pin (pin: true). Both pin types
+  // fought Lenis: default (fixed) pinning snapped the section forward the
+  // instant it engaged (fixed-position pin math resolving against a
+  // different scroll reference than Lenis's smoothed one); pinType:
+  // 'transform' traded that for the opposite bug, a visible gap from the
+  // translate trailing scroll by a frame. Both are symptoms of the same
+  // root cause — GSAP pin mechanics assume native scroll physics, Lenis
+  // decouples visual scroll from it.
   //
-  // Fixed pinning freezes the measured size onto the element as inline
-  // width/height/max-*, so the section's height must not depend on the URL bar
-  // or the frozen box stops matching the screen. That is why .section_cta is
-  // 100lvh at medium (largest viewport) rather than 100vh: lvh never changes,
-  // and being sized to the bar-hidden state means the section is never shorter
-  // than what is on screen. ignoreMobileResize stops the bar sliding from
-  // triggering a refresh mid-pin.
-  if (isMedium) {
-    ScrollTrigger.config({ ignoreMobileResize: true });
-
-    ScrollTrigger.create({
-      trigger: section,
-      start: 'top top',
-      end: PIN_LENGTH,
-      pin: true,
-      pinSpacing: true,
-      anticipatePin: 1,
-      invalidateOnRefresh: true,
-    });
-
-    window.addEventListener('load', () => ScrollTrigger.refresh());
-    return;
-  }
+  // Replaced with plain CSS position: sticky on .section_cta itself,
+  // wrapped in .cta-sticky-wrapper (170lvh at this breakpoint — 100lvh for
+  // the section plus 70lvh of hold room, the same distance PIN_LENGTH
+  // described). No ScrollTrigger involved in creating the hold at all, so
+  // there's nothing left to conflict with Lenis. cta-reveal.js still uses
+  // PIN_LENGTH as a plain scroll-distance value for its own (non-pinning)
+  // progress tracker, which was never the source of either bug.
+  if (isMedium) return;
 
   // Image is taller than its container so it can slide without ever exposing
   // a gap — it must stay within [-excess, 0]: at y=0 the top edge is flush

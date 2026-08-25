@@ -18,10 +18,28 @@ const SELECTORS = {
   lastWrapper: '.hero_last-wrapper',
   lastTitle: '.hero_last-title',
   lastCopy: '.hero_last-copy',
+
+  // :not(.is-f) excludes the footer's "back to top" variant of the same
+  // component — that one is handled separately by footer-reveal.js.
+  scrollDownWrap: '.scroll-down-wrap:not(.is-f)',
 };
 
 function exists(target) {
   return gsap.utils.toArray(target).length > 0;
+}
+
+// Wraps an element in an overflow:hidden box so it can slide up from behind
+// its own edge — same trick as footer-reveal.js's maskElement, kept local
+// here rather than shared since every section in this codebase owns its
+// mask class rather than reusing one (.line-mask, .cta-line-mask,
+// .footer-reveal-mask, etc.).
+function maskChild(el) {
+  if (!el || el.parentElement?.classList.contains('scroll-down-reveal-mask')) return el;
+  const mask = document.createElement('div');
+  mask.className = 'scroll-down-reveal-mask';
+  el.parentNode.insertBefore(mask, el);
+  mask.appendChild(el);
+  return el;
 }
 
 // Sharp at the top, progressively more blurred toward the bottom. Each
@@ -127,6 +145,13 @@ export async function initHeroTextSplit() {
   gsap.set(hardwareTitleLines, { yPercent: 100, opacity: 0, willChange: 'transform, opacity', force3D: true });
   gsap.set(SELECTORS.heroDivider, { scaleX: 0, transformOrigin: '50% 50%' });
 
+  const scrollDownWrap = document.querySelector(SELECTORS.scrollDownWrap);
+  const scrollDownParts = scrollDownWrap
+    ? [scrollDownWrap.querySelector('.s-icon-wrapper'), scrollDownWrap.querySelector('.scroll-down-text')].filter(Boolean).map(maskChild)
+    : [];
+  gsap.set(scrollDownParts, { yPercent: 110 });
+  if (scrollDownWrap) gsap.set(scrollDownWrap, { visibility: 'visible' });
+
   // paused: true — held until the preloader finishes.
   const introTl = gsap.timeline({
     paused: true,
@@ -140,6 +165,13 @@ export async function initHeroTextSplit() {
     .to([...heroTitleLines, ...heroTitleBadgeLines], { yPercent: 0, stagger: 0.2 })
     .to(heroCopyLines, { yPercent: 0, stagger: 0.12 }, '-=1.05')
     .to(SELECTORS.heroDivider, { scaleX: 1, duration: 0.9, ease: 'power3.out' }, 0);
+
+  if (scrollDownParts.length) {
+    // Absolute 0, not chained after the copy lines — it was landing ~1s+
+    // after the curtain actually opened, which read as arriving late for
+    // what's meant to be an immediate "you can scroll now" cue.
+    introTl.to(scrollDownParts, { yPercent: 0, duration: 0.8, stagger: 0.08, ease: 'power3.out' }, 0);
+  }
 
   let introStarted = false;
   function startHeroIntro() {
@@ -243,10 +275,18 @@ export async function initHeroTextSplit() {
     }
   }
 
+  // Runs at every width, including mobile. .hero-video-wrapper is
+  // position:sticky, and this animates top/left/width/height — real layout
+  // properties, including top, the exact one sticky positioning tracks —
+  // which is a known trigger for Safari mobile freezing the scroll gesture
+  // right at this boundary (JS mutating top while position:sticky is
+  // actively engaged, mid-touch-scroll). Restored deliberately anyway —
+  // hero-video-parallax.js's mobile scale+Y parallax runs alongside this,
+  // not instead of it.
   if (exists(SELECTORS.heroVideo)) {
     gsap.to(SELECTORS.heroVideo, {
       width: '100vw',
-      height: '100vh',
+      height: '100svh',
       left: '0px',
       top: '0px',
       borderRadius: '0rem',

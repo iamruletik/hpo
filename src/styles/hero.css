@@ -5,6 +5,15 @@
   overflow: visible !important;
 }
 
+/* hero-text-split.js reveals this after wrapping .s-icon-wrapper /
+   .scroll-down-text in .scroll-down-reveal-mask and parking them at
+   yPercent: 110 — hidden here so nothing flashes in its final position
+   before that setup runs. Scoped off .is-f: the footer's variant is
+   handled separately by footer-reveal.js and stays visible until then. */
+.scroll-down-wrap:not(.is-f) {
+  visibility: hidden;
+}
+
 .hero_big-title {
   line-height: 0.95;
 }
@@ -42,6 +51,11 @@
    from the hero video that isn't there anymore — just show it. */
 .aim_video-wrapper {
   opacity: 1;
+}
+
+.scroll-down-reveal-mask {
+  display: block;
+  overflow: hidden;
 }
 
 .scroll-down-wrap:hover .scroll-down-icon {

@@ -57,9 +57,23 @@ export function initFootIcon() {
         playLoop();
       } else {
         loopVideo.addEventListener('canplay', playLoop, { once: true });
-        loopVideo.load();
       }
     }
+
+    // Network warm-up only, via fetch — NOT via revealVideo.src/.load().
+    // Setting .src on the actual <video> element early (what this used to
+    // do) made it a real DOM resource the browser counts toward
+    // window.load, which cta-parallax.js listens on to refresh
+    // ScrollTrigger. Heavy media pushed window.load later, past the point
+    // the user had already scrolled to section_cta, so that refresh
+    // recalculated its pin position live — the pin "snapping" mid-view.
+    // fetch() warms the HTTP cache the same way without being a load-
+    // blocking DOM resource, so .load() below still hits cache instantly
+    // once the section actually scrolls into view.
+    // no-cors: we never read the response, just want it in the HTTP cache,
+    // so this doesn't depend on the storage bucket sending CORS headers.
+    fetch(videoSources.reveal, { mode: 'no-cors' }).catch(() => undefined);
+    fetch(videoSources.loop, { mode: 'no-cors' }).catch(() => undefined);
 
     function startAnimation() {
       if (hasStarted) return;
@@ -73,6 +87,14 @@ export function initFootIcon() {
       loopVideo.src = videoSources.loop;
       revealVideo.loop = false;
       loopVideo.loop = true;
+      // iOS Safari silently refuses .play() unless muted+playsinline are set
+      // before the call, not just present as Designer-authored HTML
+      // attributes — belt and suspenders since we can't confirm those from
+      // the repo alone.
+      revealVideo.muted = true;
+      revealVideo.playsInline = true;
+      loopVideo.muted = true;
+      loopVideo.playsInline = true;
 
       revealVideo.load();
       // Loop starts loading alongside reveal so the handoff has no blank frame.

@@ -179,11 +179,26 @@ function waitForHeroReady(preloader) {
   return Promise.race([ready, safetyTimeout]);
 }
 
+// A classic (non-module) inline script in the site head — see Webflow's
+// site-wide freeform head code — locks scroll before this module even starts
+// downloading, closing the gap between first paint and this deferred module
+// executing. It has no way to know whether this page even has a preloader,
+// so every exit path here is responsible for releasing it.
+function releaseEarlyScrollLock() {
+  const earlyLock = window.__earlyScrollLock;
+  if (!earlyLock) return;
+  window.removeEventListener('wheel', earlyLock.block);
+  window.removeEventListener('touchmove', earlyLock.block);
+  window.removeEventListener('keydown', earlyLock.blockKeys);
+  window.__earlyScrollLock = null;
+}
+
 export function initPreloader() {
   const preloader = document.querySelector('.preloader');
 
   if (!preloader) {
     window.preloaderFinished = true;
+    releaseEarlyScrollLock();
     return;
   }
 
@@ -194,8 +209,13 @@ export function initPreloader() {
   // descendant — so while the preloader was up, .solutions-sticky could not
   // stick. Removing the preloader restored overflow, sticky engaged, and the
   // section snapped into place. That was the load jump.
+  // No target exception here. .preloader is a fixed, full-viewport overlay
+  // with default pointer-events, so while it's showing every wheel/touch
+  // event's target resolves to something inside it — an early-return keyed
+  // on that would make this a no-op for virtually the whole sequence, which
+  // is what was happening. Nothing inside the preloader is scrollable, so
+  // there is no case that needs to be exempted.
   const blockScroll = (event) => {
-    if (event.target.closest?.('.preloader')) return;
     event.preventDefault();
   };
   const blockKeys = (event) => {
@@ -217,7 +237,11 @@ export function initPreloader() {
 
   function finish() {
     unlockScroll();
+    releaseEarlyScrollLock();
     document.documentElement.classList.remove('preloader-active');
+    // Lenis may have initialised (and self-stopped, see core/lenis.js) while
+    // the curtain was still up — restart it now, or the page never scrolls.
+    window.lenis?.start();
     window.preloaderFinished = true;
     window.dispatchEvent(new CustomEvent('preloader:complete'));
     preloader.remove();
@@ -269,6 +293,13 @@ export function initPreloader() {
   letters.forEach((letter) => letter.classList.remove('is-visible'));
   placeLetters(letters);
 
+  // Pin to the top the moment the sequence starts, before the scroll lock
+  // even engages — the CSS lock in the site head guarantees nothing can
+  // move once it's active, but says nothing about where. Without this, a
+  // reload that lands mid-page (browser scroll restoration) would lock in
+  // place instead of at the top, and Lenis (initialised after this, in
+  // main.js) would read that as its own "home" position.
+  window.scrollTo(0, 0);
   document.documentElement.classList.add('preloader-active');
   lockScroll();
   preloader.classList.remove('is-complete');
