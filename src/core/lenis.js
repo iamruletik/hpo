@@ -20,7 +20,7 @@ export function initLenis() {
   }
 
   lenis = new Lenis({
-    lerp: 0.085,
+    lerp: 0.075,
     smoothWheel: true,
     wheelMultiplier: 0.9,
     syncTouch: false,

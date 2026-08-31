@@ -52,6 +52,18 @@ html.lenis body {
   height: auto;
 }
 
+/* iOS Safari rubber-bands horizontally on any left/right drag even with zero
+   horizontal scroll content, since nothing tells it the page has no X axis.
+   overscroll-behavior-x alone doesn't stop the drag gesture itself on iOS
+   (only the scroll-chaining part), so touch-action:pan-y is what actually
+   kills the horizontal pan/bounce; vertical native touch scroll (which
+   Lenis rides on top of, syncTouch:false) is unaffected. */
+html,
+body {
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
+
 .lenis:not(.lenis-autoToggle).lenis-stopped {
   overflow: clip;
 }

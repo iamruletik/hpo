@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gradient bands — shader</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; }
+  body { font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: #666; }
+  #wrap { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #ui { position: fixed; left: 16px; bottom: 14px; display: flex; gap: 13px; align-items: center; flex-wrap: wrap; }
+  button {
+    font: inherit; color: #555; background: transparent;
+    border: 1px solid #ddd; border-radius: 2px; padding: 3px 9px; cursor: pointer;
+  }
+  button:hover { border-color: #999; }
+  button:focus-visible { outline: 2px solid #333; outline-offset: 2px; }
+  input[type=range] { width: 88px; accent-color: #888; }
+  label { display: flex; gap: 6px; align-items: center; }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas></div>
+
+<div id="ui">
+  <button id="toggle">pause</button>
+  <button id="reroll">reroll</button>
+  <label>speed <input id="speed" type="range" min="0" max="300" value="100"></label>
+  <label>core <input id="core" type="range" min="0" max="150" value="100"></label>
+  <label>density <input id="dens" type="range" min="40" max="220" value="135"></label>
+  <span id="fps"></span>
+</div>
+
+<script id="vs" type="x-shader/x-vertex">
+attribute vec2 a;
+void main() { gl_Position = vec4(a, 0.0, 1.0); }
+</script>
+
+<script id="fs" type="x-shader/x-fragment">
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+
+uniform vec2  uRes;
+uniform float uTime;
+uniform float uSeed;
+uniform float uCore;   // strength of the thin centre line
+uniform float uDens;   // overall colour density
+
+const int   N   = 11;
+const float FN  = 11.0;
+const float TAU = 6.28318;
+const float JIT  = 0.35;   // radians of phase jitter; >1.0 starts to break the cancellation
+const float FADE = 0.20;   // vertical fade width, FIXED — not scaled by height,
+                           // otherwise short bands get hard edges and tall ones go mushy
+
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / uRes;
+  float t = uTime;
+
+  // colours are FIXED and never touched by the seed — all 11 appear every reroll
+  vec3  bc[N];
+  float bh[N], bw[N], bi[N];
+
+  bc[0]=vec3(0.36,0.90,0.70); bh[0]=0.62; bw[0]=0.115; bi[0]=0.34; // mint
+  bc[1]=vec3(0.50,0.88,0.58); bh[1]=0.80; bw[1]=0.130; bi[1]=0.32; // green
+  bc[2]=vec3(0.85,0.92,0.38); bh[2]=0.55; bw[2]=0.105; bi[2]=0.30; // chartreuse
+  bc[3]=vec3(1.00,0.80,0.46); bh[3]=0.70; bw[3]=0.120; bi[3]=0.33; // amber
+  bc[4]=vec3(1.00,0.35,0.28); bh[4]=0.92; bw[4]=0.100; bi[4]=0.44; // coral
+  bc[5]=vec3(1.00,0.52,0.42); bh[5]=0.60; bw[5]=0.125; bi[5]=0.36; // salmon
+  bc[6]=vec3(0.50,0.50,0.66); bh[6]=0.74; bw[6]=0.108; bi[6]=0.31; // slate
+  bc[7]=vec3(0.56,0.62,0.95); bh[7]=0.86; bw[7]=0.132; bi[7]=0.38; // lavender
+  bc[8]=vec3(1.00,0.55,0.70); bh[8]=0.66; bw[8]=0.112; bi[8]=0.37; // pink
+  bc[9]=vec3(1.00,0.38,0.34); bh[9]=0.90; bw[9]=0.102; bi[9]=0.42; // red
+  bc[10]=vec3(1.00,0.66,0.64);bh[10]=0.58;bw[10]=0.128;bi[10]=0.33; // peach
+
+  // subtractive accumulation. every band contributes absorption, so where two
+  // bands overlap you get their real mix instead of the later one winning.
+  vec3 absorb = vec3(0.0);
+
+  for (int i = 0; i < N; i++) {
+    float fi = float(i);
+
+    float cx = (fi + 0.5) / FN;        // even across the container width
+
+    // Low-discrepancy jitter. NOT fract(sin(dot(...))) — at seed*78.233 the sin
+    // argument runs into the thousands, where float24's mantissa step is ~1e-3,
+    // so neighbouring bands get neighbouring "random" values and sync up.
+    float j1 = (fract(fi * 0.6180339887 + uSeed       ) - 0.5) * JIT;
+    float j2 = (fract(fi * 0.7548776662 + uSeed * 1.7 ) - 0.5) * JIT;
+    float j3 = (fract(fi * 0.8191725134 + uSeed * 2.3 ) - 0.5) * JIT;
+
+    // Phase offset is a WHOLE number of cycles across the field. sum of
+    // sin(x - 2*pi*i/N) over evenly spaced i is zero, so the bands' brightness
+    // cancels in aggregate: the wave still travels, the total never pulses.
+    // Sharing one phase slope (the old cx*7.4) made them dip together — that
+    // collective dip drove absorb toward 0, and exp(-0) is white.
+    float p = cx * TAU;
+    float wave = sin(t * 0.48 - p * 1.0 + j1);
+    float slow = sin(t * 0.21 - p * 2.0 + j2);
+    float fast = sin(t * 0.95 - p * 3.0 + j3);
+
+    float wob = 0.78 + 0.24 * wave + 0.14 * slow + 0.05 * fast;  // 0.42 .. 1.14
+    float h   = bh[i] * wob;
+
+    float in_ = bi[i] * (0.90 + 0.10 * wob);   // weak coupling: strong coupling strobes
+
+    float d    = uv.x - cx;
+    float halo = exp(-pow(d / bw[i], 2.0));            // wide sideways fade
+    float core = exp(-pow(d / (bw[i] * 0.13), 2.0));   // thin centre line
+    float g    = halo * 0.55 + core * 0.85 * uCore;
+
+    float v = 1.0 - smoothstep(h - FADE, h + 0.02, uv.y);
+
+    absorb += (1.0 - bc[i]) * clamp(g * v * in_, 0.0, 1.0);
+  }
+
+  vec3 col = exp(-absorb * uDens);                        // Beer–Lambert, never clips
+  col += (hash(gl_FragCoord.xy) - 0.5) * (1.6 / 255.0);   // dither: kills 8-bit banding
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script>
+const canvas = document.getElementById('c');
+// preserveDrawingBuffer keeps the last frame alive when paused, so a composite
+// that lands without a redraw doesn't show a cleared (black) buffer.
+const gl = canvas.getContext('webgl', {
+  antialias: false, alpha: false, powerPreference: 'low-power',
+  preserveDrawingBuffer: true
+});
+
+if (!gl) {
+  document.getElementById('ui').textContent = 'WebGL unavailable — fall back to the static image.';
+} else {
+  const compile = (type, src) => {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, document.getElementById('vs').textContent));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, document.getElementById('fs').textContent));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'a');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+  const uRes  = gl.getUniformLocation(prog, 'uRes');
+  const uTime = gl.getUniformLocation(prog, 'uTime');
+  const uSeed = gl.getUniformLocation(prog, 'uSeed');
+  const uCore = gl.getUniformLocation(prog, 'uCore');
+  const uDens = gl.getUniformLocation(prog, 'uDens');
+
+  // default clear colour is transparent black; with alpha:false that composites
+  // as OPAQUE BLACK. On a white page any cleared frame is a visible flash.
+  gl.clearColor(1.0, 1.0, 1.0, 1.0);
+
+  const SCALE = 1.0;   // not devicePixelRatio — the core line is still ~12px wide at 1x
+
+  function resize() {
+    const w = Math.round(canvas.clientWidth  * SCALE);
+    const h = Math.round(canvas.clientHeight * SCALE);
+    if (canvas.width !== w || canvas.height !== h) {
+      // assigning width/height CLEARS the drawing buffer — must redraw in the
+      // same task or the compositor can show the cleared buffer first.
+      canvas.width = w; canvas.height = h;
+      gl.viewport(0, 0, w, h);
+      draw();
+    }
+  }
+
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let t = 0, seed = Math.random(), last = performance.now();   // 0..1: feeds fract(), not a sin hash
+  let running = !reduced, speed = 1, core = 1, dens = 1.35;
+  const fpsEl = document.getElementById('fps');
+  let frames = 0, fpsClock = last;
+
+  function draw() {
+    if (gl.isContextLost()) return;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform1f(uTime, t);
+    gl.uniform1f(uSeed, seed);
+    gl.uniform1f(uCore, core);
+    gl.uniform1f(uDens, dens);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    let dt = (now - last) / 1000; last = now;
+    if (!running) return;
+    dt = Math.min(dt, 0.05);
+    t += dt * speed;
+    draw();
+    frames++;
+    if (now - fpsClock > 1000) { fpsEl.textContent = frames + ' fps'; frames = 0; fpsClock = now; }
+  }
+
+  new ResizeObserver(resize).observe(canvas);
+  resize();
+  draw();
+  requestAnimationFrame(loop);
+
+  // a lost context leaves a blank canvas until it's rebuilt
+  canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); running = false; });
+  canvas.addEventListener('webglcontextrestored', () => location.reload());
+
+  const btn = document.getElementById('toggle');
+  btn.textContent = running ? 'pause' : 'play';
+  btn.onclick = () => { running = !running; btn.textContent = running ? 'pause' : 'play'; last = performance.now(); };
+
+  document.getElementById('reroll').onclick = () => { seed = Math.random(); draw(); };
+  document.getElementById('speed').oninput = e => { speed = e.target.value / 100; };
+  document.getElementById('core').oninput  = e => { core  = e.target.value / 100; draw(); };
+  document.getElementById('dens').oninput  = e => { dens  = e.target.value / 100; draw(); };
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { running = false; btn.textContent = 'play'; }
+    else { last = performance.now(); draw(); }   // repaint on return, don't wait for rAF
+  });
+}
+</script>
+</body>
+</html>

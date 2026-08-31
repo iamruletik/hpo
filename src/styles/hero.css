@@ -47,6 +47,49 @@
   object-fit: cover;
 }
 
+/* Built by hero-aperture.js. The element IS the hole — the box-shadow is what
+   paints the white plane around it, so growing the hole is a transform on this
+   one box and the video behind it is never touched.
+
+   400vmax, not 100vmax: the shadow scales with the element, so the spread has
+   to still cover the viewport at the smallest scale this ever animates from.
+
+   z-index 9 ties with .progressive-blur-wrapper, which is the FIRST child of
+   body while this is appended last — equal z-index resolves on DOM order, so
+   this paints above the blur. .header is 10 and stays above both. Neither
+   .page-wrapper nor .main carries a z-index or transform, so .header competes
+   in this same body-level stacking context rather than being trapped inside one.
+
+   bottom is deliberately overshot rather than sized to the viewport. Neither
+   lvh, dvh, nor a measured innerHeight describes the fixed containing block on
+   both iOS and Chrome Android while a URL bar is collapsing, and every attempt
+   to track it left a white band at the bottom on one of them. Pushing the
+   bottom edge far past any possible screen means the hole simply has no bottom
+   edge on screen to get wrong, in any bar state, with nothing to keep in sync.
+
+   The cost is that the plane has no visible inset along the bottom — it reads
+   8px on three sides. That was already true of the lvh version, minus the jank.
+
+   transform-origin is top-centre so the tween can scale horizontally for the
+   side insets while the top inset comes from a plain y offset. Scaling
+   vertically would move the bottom edge, which only exists to be off screen.
+
+   No will-change here on purpose. WebKit folds the shadow spread into the
+   layer's paint bounds, and a promoted layer sized to include 400vmax of
+   shadow would be a catastrophic backing store. Measure before adding it. */
+.hero-aperture {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: -25vh;
+  z-index: 9;
+  transform-origin: 50% 0%;
+  border-radius: 0;
+  box-shadow: 0 0 0 400vmax #fff;
+  pointer-events: none;
+}
+
 /* Webflow ships this at opacity:0, expecting a scroll-scrubbed crossfade
    from the hero video that isn't there anymore — just show it. */
 .aim_video-wrapper {

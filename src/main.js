@@ -4,6 +4,7 @@ import './style.css';
 import { ScrollTrigger } from './core/gsap.js';
 import { initLenis } from './core/lenis.js';
 import { initHeroVideoParallax } from './modules/hero-video-parallax.js';
+import { initHeroAperture } from './modules/hero-aperture.js';
 import { initHeroTextSplit } from './modules/hero-text-split.js';
 import { initTitleLineReveal } from './modules/title-line-reveal.js';
 import { initNavLogoTheme } from './modules/nav-logo-theme.js';
@@ -24,6 +25,7 @@ import { initCtaReveal } from './modules/cta-reveal.js';
 import { initOverviewReveal } from './modules/overview-reveal.js';
 import { initBodyThemeScroll } from './modules/body-theme-scroll.js';
 import { initFooterSequence } from './modules/footer-sequence.js';
+import { initFooterGlowShader } from './modules/footer-glow-shader.js';
 import { initFooterReveal } from './modules/footer-reveal.js';
 import { initSafariBlurDisable } from './modules/safari-blur-disable.js';
 
@@ -45,6 +47,9 @@ function runEarly() {
   initSafariBlurDisable();
   initLenis();
   initHeroVideoParallax();
+  // Above the fold and covering the hero, so it has to exist at its start state
+  // before the preloader lifts — not deferred.
+  initHeroAperture();
   initHeroTextSplit();
   initTitleLineReveal();
   initNavLogoTheme();
@@ -97,6 +102,7 @@ const DEFERRED = [
   initNavProgress,
   initCtaReveal,
   initFooterSequence,
+  initFooterGlowShader,
   initFooterReveal,
 ];
 

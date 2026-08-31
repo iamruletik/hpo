@@ -3,6 +3,23 @@ import { gsap, ScrollTrigger } from '../core/gsap.js';
 const FRAME_COUNT = 60;
 const FRAME_PATH = 'sequence';
 
+// 991px matches the Designer's medium breakpoint and the @media edge in
+// footer-scene.css. Read once at init, not watched — crossing the breakpoint
+// swaps input model as well as size, and rebinding all of that live is more
+// machinery than a decorative element earns.
+const MOBILE_QUERY = '(max-width: 991px)';
+
+// The sequence is sized off the frame's own aspect ratio, which leaves it small
+// on a phone. Applied as a GSAP transform rather than CSS: gsap owns this
+// element's matrix (x/y drift, yPercent reveal) and a CSS transform would be
+// overwritten on the next set.
+const MOBILE_SCALE = 2;
+
+// Frames per second for the mobile autoplay. The source is 60 frames; running
+// them at 24 gives a 2.5s pass, slow enough to read as ambient rather than a
+// flipbook — and the yoyo makes the full cycle 5s.
+const AUTOPLAY_FPS = 24;
+
 // How far the whole element drifts with the pointer, in px. Deliberately small
 // — this is texture, not a parallax effect.
 const DRIFT = 14;
@@ -183,6 +200,47 @@ export function initFooterSequence() {
     aimAt(touch.clientX, touch.clientY);
   }
 
+  // Mobile plays the sequence on a timer instead of scrubbing it, so this
+  // drives currentFrame directly — the easing in tick() exists to chase a
+  // pointer target and would only smear a constant-rate advance.
+  let autoplayLast = performance.now();
+  let autoplayPosition = 0;
+  let onScreen = false;
+
+  function autoplay(now) {
+    requestAnimationFrame(autoplay);
+
+    const elapsed = (now - autoplayLast) / 1000;
+    autoplayLast = now;
+
+    // The footer is the last thing on the page. Without this the loop repaints
+    // a canvas nobody can see for as long as the user is anywhere above it.
+    if (!onScreen) return;
+
+    // Yoyo by folding a double-length cycle back on itself, rather than
+    // flipping a direction flag at the ends: a flag has to be tested against a
+    // bound that a long frame can overshoot, which sticks the sequence at one
+    // end. This cannot overshoot — position is derived, never accumulated
+    // against a limit.
+    const span = FRAME_COUNT - 1;
+    autoplayPosition = (autoplayPosition + Math.min(elapsed, 0.25) * AUTOPLAY_FPS) % (span * 2);
+    currentFrame = span - Math.abs(autoplayPosition - span);
+
+    draw(currentFrame);
+  }
+
+  function startAutoplay() {
+    new IntersectionObserver(
+      ([entry]) => {
+        onScreen = entry.isIntersecting;
+        if (onScreen) autoplayLast = performance.now();
+      },
+      { rootMargin: '10%' }
+    ).observe(root);
+
+    requestAnimationFrame(autoplay);
+  }
+
   whenPreloaderDone(() => {
     frames = loadFrames();
 
@@ -208,20 +266,28 @@ export function initFooterSequence() {
     return;
   }
 
-  window.addEventListener('pointermove', onPointerMove, { passive: true });
+  const isMobile = window.matchMedia(MOBILE_QUERY).matches;
 
-  // There is no hover on a phone, so the finger is the pointer: wherever it
-  // lands and however it drags — including the swipe that scrolls the page —
-  // scrubs the sequence. touchstart as well as touchmove, so a tap alone moves
-  // it. Passive: these never call preventDefault, and marking them so keeps
-  // them out of the scroll's critical path.
-  window.addEventListener('touchstart', onTouch, { passive: true });
-  window.addEventListener('touchmove', onTouch, { passive: true });
+  if (isMobile) {
+    startAutoplay();
+  } else {
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+
+    // Desktop only now. Touch scrubbing was how a phone drove this — the finger
+    // as pointer, including the swipe that scrolls the page — but that meant
+    // the animation only existed while someone was actively dragging, and it
+    // ran backwards as often as forwards.
+    window.addEventListener('touchstart', onTouch, { passive: true });
+    window.addEventListener('touchmove', onTouch, { passive: true });
+  }
 
   // Rises out from behind the section's clipped edge once the footer is well
   // into view. Plays on its own timing rather than scrubbing, so the entrance
   // reads the same regardless of how fast the page is scrolled.
-  gsap.set(inner, { yPercent: 100, opacity: 0 });
+  //
+  // scale rides along in the same set so it composes into the one matrix gsap
+  // maintains for this element; tick()'s set only names x/y, so it survives.
+  gsap.set(inner, { yPercent: 100, opacity: 0, scale: isMobile ? MOBILE_SCALE : 1 });
   gsap
     .timeline({
       scrollTrigger: {

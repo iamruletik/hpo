@@ -275,34 +275,6 @@ export async function initHeroTextSplit() {
     }
   }
 
-  // Runs at every width, including mobile. .hero-video-wrapper is
-  // position:sticky, and this animates top/left/width/height — real layout
-  // properties, including top, the exact one sticky positioning tracks —
-  // which is a known trigger for Safari mobile freezing the scroll gesture
-  // right at this boundary (JS mutating top while position:sticky is
-  // actively engaged, mid-touch-scroll). Restored deliberately anyway —
-  // hero-video-parallax.js's mobile scale+Y parallax runs alongside this,
-  // not instead of it.
-  if (exists(SELECTORS.heroVideo)) {
-    gsap.to(SELECTORS.heroVideo, {
-      width: '100vw',
-      height: '100svh',
-      left: '0px',
-      top: '0px',
-      borderRadius: '0rem',
-      duration: 1.1,
-      ease: 'power3.inOut',
-      scrollTrigger: {
-        trigger: 'body',
-        start: 'top+=100 top',
-        // `once` has to go with it — it kills the trigger after the first play,
-        // so the reverse would never fire.
-        toggleActions: 'play none none reverse',
-        invalidateOnRefresh: true,
-      },
-    });
-  }
-
   if (lastTitleLines.length && exists(SELECTORS.lastWrapper)) {
     gsap.fromTo(
       lastTitleLines,

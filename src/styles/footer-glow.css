@@ -1,0 +1,75 @@
+/* Canvas for the gradient-bands shader, injected into the Designer's
+   .footer-scene__glow box by footer-glow-shader.js. That box is already
+   position:absolute with overflow:hidden and its own height, so the canvas
+   just fills it. */
+.footer-glow__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Tuning panel. Only rendered while SHOW_CONTROLS in footer-glow-shader.js is
+   true; the shipped values live in PRESETS there.
+
+   position:fixed rather than inside the glow: .footer-scene__glow is
+   pointer-events:none, so controls parented to it could not be clicked. */
+.footer-glow-controls {
+  position: fixed;
+  z-index: 10000;
+  left: 16px;
+  bottom: 14px;
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  flex-wrap: wrap;
+  max-width: calc(100vw - 32px);
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.16);
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #666;
+}
+
+.footer-glow-controls button {
+  font: inherit;
+  color: #555;
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.footer-glow-controls button:hover {
+  border-color: #999;
+}
+
+.footer-glow-controls button:focus-visible {
+  outline: 2px solid #333;
+  outline-offset: 2px;
+}
+
+.footer-glow-controls label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.footer-glow-controls input[type='range'] {
+  width: 88px;
+  accent-color: #888;
+}
+
+/* Fixed width so the number changing does not shuffle the row. */
+.footer-glow-controls output {
+  min-width: 3.2em;
+  color: #111;
+}
+
+/* The line to copy back once the values are settled. */
+.footer-glow-controls code {
+  flex-basis: 100%;
+  color: #111;
+  user-select: all;
+}

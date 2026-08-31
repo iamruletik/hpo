@@ -1,41 +1,39 @@
 import { gsap } from '../core/gsap.js';
 
+// The video is position:fixed and taller than the viewport, so the overflow
+// hanging off the bottom is the parallax budget: scrub Y from 0 to
+// (viewport - video height), a negative number, and the frame travels up by
+// exactly the amount that was hidden — no more, so the bottom edge lands flush
+// instead of pulling a gap in behind it.
+//
+// Measured rather than hardcoded because the height comes from Webflow and
+// changes per breakpoint. offsetHeight, not getBoundingClientRect(), because
+// we are writing a transform to this same element and rect would fold our own
+// scale/translate back into the next measurement.
+const HERO_VIDEO = '.hero-picture';
+const HERO_SECTION = '.section_hero';
+
+function parallaxDistance(video) {
+  return window.innerHeight - video.offsetHeight;
+}
+
 export function initHeroVideoParallax() {
-  const sectionHero = document.querySelector('.section_hero');
-  const videoWrapper = document.querySelector('.hero-video-wrapper');
-  // Scoped to the wrapper on purpose. Two elements carry .hero-video-embed —
-  // this one and the `.is-aim` embed in .aim_video-wrapper — and the hero copy
-  // is set to visibility:false in Webflow, so it is absent from the rendered
-  // page. A document-wide query therefore matched the aim embed instead and
-  // parallaxed it against the wrong wrapper, leaving it at translateY(-16px).
-  const videoEmbed = videoWrapper?.querySelector('.hero-video-embed');
+  const sectionHero = document.querySelector(HERO_SECTION);
+  const video = document.querySelector(HERO_VIDEO);
 
-  if (!sectionHero || !videoWrapper || !videoEmbed) return;
+  if (!sectionHero || !video) return;
 
-  // Mobile-only extra motion, additive to hero-text-split.js's
-  // top/left/width/height grow animation (which still runs at every width):
-  // a static scale-up (set once, not animated) plus the Y-scroll-parallax
-  // below, giving the small pre-grow box some movement of its own.
-  const isMobile = window.innerWidth <= 991;
-  // Bumped up from 1.2 — that left a gap before section_offers once the
-  // video finished translating up toward the end of the scroll range, the
-  // scaled buffer wasn't tall enough to still cover the wrapper's bottom
-  // edge by then. More headroom here.
-  const scale = isMobile ? 1.5 : 1;
+  // Nothing hangs off the bottom, nothing to travel. Guards the common case
+  // where the Designer has the video at exactly 100% height — distance would
+  // be 0, or positive if it is shorter, and a positive y would drag the top
+  // edge down and expose the page behind it.
+  if (parallaxDistance(video) >= 0) return;
 
-  if (isMobile) {
-    // transform-origin top-anchored: scaling grows the box downward only,
-    // so the top edge stays exactly where it was (no separate Y correction
-    // needed to keep it flush) and the extra height hangs off the bottom as
-    // buffer for the parallax below to reveal.
-    gsap.set(videoEmbed, { scale, transformOrigin: '50% 0%' });
-  }
-
-  gsap.to(videoEmbed, {
-    // Function form so the value recomputes on resize. Multiplied by scale
-    // so the parallax range accounts for the extra buffer the scale-up adds
-    // (a no-op on desktop, where scale is 1).
-    y: () => -(videoEmbed.offsetHeight * scale - videoWrapper.offsetHeight),
+  gsap.to(video, {
+    // Function form so the distance recomputes on resize/refresh rather than
+    // baking in whatever the viewport happened to be at init — on mobile the
+    // URL bar collapsing changes innerHeight mid-scroll.
+    y: () => parallaxDistance(video),
     ease: 'none',
     scrollTrigger: {
       trigger: sectionHero,

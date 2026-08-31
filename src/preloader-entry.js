@@ -9,6 +9,10 @@
 // It still publishes the same contract main.js depends on:
 //   window.preloaderFinished  — boolean flag
 //   'preloader:complete'      — window event
+import { initHeroVideoSource } from './modules/hero-video-source.js';
 import { initPreloader } from './modules/preloader.js';
 
+// Before initPreloader(), not after — preloader.js waits on the hero <video>
+// reaching readyState >= 2, which a video with no src never does.
+initHeroVideoSource();
 initPreloader();

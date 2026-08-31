@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>viewport test</title>
+<style>
+  :root {
+    --vvh: 100vh;
+    --vvtop: 0px;
+    --panel-h: 132px;
+    --ink: #e8e6e1;
+    --bg: #17181a;
+    --line: #33353a;
+    --hot: #7ee787;
+    --warn: #f0883e;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+
+  html, body { height: 100%; background: var(--bg); color: var(--ink); }
+
+  /* Fixed shell: never resizes, so nothing reflows while the URL bar moves. */
+  .shell {
+    position: fixed;
+    inset: 0;
+    height: 100lvh;
+    overflow: hidden;
+  }
+
+  /* The scroller lives inside the fixed shell. */
+  .scroller {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem 1rem calc(var(--panel-h) + 2rem);
+  }
+
+  .filler { height: 260vh; padding-top: 1rem; line-height: 1.7; font-size: .82rem; color: #8b8f96; }
+  .filler p { margin-bottom: 1.4rem; max-width: 46ch; }
+
+  /* THE THING BEING TESTED.
+     Fixed height, transform-only tracking of the visual viewport bottom edge. */
+  .panel {
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: var(--panel-h);
+    transform: translate3d(
+      0,
+      calc(var(--vvtop) + var(--vvh) - var(--panel-h)),
+      0
+    );
+    will-change: transform;
+    background: #1f2126;
+    border-top: 1px solid var(--line);
+    padding: .7rem .9rem;
+    padding-bottom: calc(.7rem + env(safe-area-inset-bottom));
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45rem .8rem; font-size: .7rem; }
+  .cell b { display: block; font-weight: 400; color: #71767e; font-size: .62rem; }
+  .cell span { font-variant-numeric: tabular-nums; font-size: .95rem; }
+  .delta { color: var(--warn); }
+  .live { color: var(--hot); }
+
+  .probe { position: absolute; visibility: hidden; width: 1px; }
+  #p-svh { height: 100svh; }
+  #p-lvh { height: 100lvh; }
+  #p-dvh { height: 100dvh; }
+
+  /* Comparison strip: the naive dvh approach, so the lag is visible side by side. */
+  .naive {
+    position: fixed;
+    left: 0; right: 0;
+    top: calc(100dvh - 4px);
+    height: 4px;
+    background: var(--warn);
+    z-index: 5;
+  }
+  .marker {
+    position: absolute;
+    left: 0; right: 0;
+    height: 4px;
+    background: var(--hot);
+    transform: translate3d(0, calc(var(--vvtop) + var(--vvh) - 4px), 0);
+    z-index: 6;
+  }
+  .legend { position: absolute; top: .8rem; left: .9rem; font-size: .65rem; line-height: 1.6; }
+  .legend i { font-style: normal; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="scroller" id="scroller">
+    <div class="legend">
+      <div><i class="live">▬</i> rAF + visualViewport (this technique)</div>
+      <div><i class="delta">▬</i> plain 100dvh (for comparison)</div>
+    </div>
+    <div class="filler">
+      <p style="padding-top:3rem">Scroll down and back up. Watch the two coloured bars at the bottom. The green one should stay glued to the bottom of the visible area through the whole URL-bar animation; the orange dvh one snaps late or lags.</p>
+      <p>Also lift your finger mid-scroll. The green bar should keep tracking during the momentum + chrome settle. That is the delay you were seeing — it comes from the resize event firing sparsely, not from the units.</p>
+      <p>Numbers in the panel: vv.height is visualViewport.height. offsetTop is how far the visual viewport has been pushed down. lvh/svh/dvh are the computed pixel values of those units right now, read off hidden probe elements.</p>
+      <p>rAF shows whether the sampling loop is currently running. It should go idle a moment after you stop touching, and wake on the next touch or scroll.</p>
+      <p style="height:120vh"></p>
+      <p>Bottom of the page.</p>
+    </div>
+  </div>
+
+  <div class="naive"></div>
+  <div class="marker"></div>
+
+  <div class="panel">
+    <div class="grid">
+      <div class="cell"><b>vv.height</b><span id="o-vvh">–</span></div>
+      <div class="cell"><b>vv.offsetTop</b><span id="o-top">–</span></div>
+      <div class="cell"><b>vv.scale</b><span id="o-scale">–</span></div>
+      <div class="cell"><b>100lvh</b><span id="o-lvh">–</span></div>
+      <div class="cell"><b>100svh</b><span id="o-svh">–</span></div>
+      <div class="cell"><b>100dvh</b><span id="o-dvh">–</span></div>
+      <div class="cell"><b>innerHeight</b><span id="o-inner">–</span></div>
+      <div class="cell"><b>resize events</b><span id="o-ev">0</span></div>
+      <div class="cell"><b>rAF</b><span id="o-raf">idle</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="probe" id="p-lvh"></div>
+<div class="probe" id="p-svh"></div>
+<div class="probe" id="p-dvh"></div>
+
+<script>
+(function () {
+  var vv = window.visualViewport;
+  var root = document.documentElement;
+
+  if (!vv) {
+    document.getElementById('o-vvh').textContent = 'n/a';
+    return;
+  }
+
+  var el = {
+    vvh:   document.getElementById('o-vvh'),
+    top:   document.getElementById('o-top'),
+    scale: document.getElementById('o-scale'),
+    lvh:   document.getElementById('o-lvh'),
+    svh:   document.getElementById('o-svh'),
+    dvh:   document.getElementById('o-dvh'),
+    inner: document.getElementById('o-inner'),
+    ev:    document.getElementById('o-ev'),
+    raf:   document.getElementById('o-raf')
+  };
+  var probe = {
+    lvh: document.getElementById('p-lvh'),
+    svh: document.getElementById('p-svh'),
+    dvh: document.getElementById('p-dvh')
+  };
+
+  var rafId = 0;
+  var running = false;
+  var stopAt = 0;
+  var events = 0;
+  var frame = 0;
+
+  function apply() {
+    // offsetTop is unreliable on some Android WebViews — clamp it.
+    var top = Math.max(0, Math.min(vv.offsetTop || 0, window.innerHeight));
+    root.style.setProperty('--vvh', vv.height + 'px');
+    root.style.setProperty('--vvtop', top + 'px');
+
+    // Readout only every 4th frame; DOM text writes are not free.
+    if ((frame++ & 3) === 0) {
+      el.vvh.textContent   = vv.height.toFixed(1);
+      el.top.textContent   = top.toFixed(1);
+      el.scale.textContent = vv.scale.toFixed(2);
+      el.lvh.textContent   = probe.lvh.getBoundingClientRect().height.toFixed(0);
+      el.svh.textContent   = probe.svh.getBoundingClientRect().height.toFixed(0);
+      el.dvh.textContent   = probe.dvh.getBoundingClientRect().height.toFixed(0);
+      el.inner.textContent = window.innerHeight;
+    }
+  }
+
+  function tick() {
+    apply();
+    if (performance.now() > stopAt) {
+      running = false;
+      el.raf.textContent = 'idle';
+      el.raf.classList.remove('live');
+      return;
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // Keep sampling for 600ms past the last input; that window covers the
+  // URL-bar animation, which outlives both the scroll and the resize event.
+  function kick() {
+    stopAt = performance.now() + 600;
+    if (running) return;
+    running = true;
+    el.raf.textContent = 'running';
+    el.raf.classList.add('live');
+    rafId = requestAnimationFrame(tick);
+  }
+
+  window.addEventListener('touchstart', kick, { passive: true });
+  window.addEventListener('touchmove',  kick, { passive: true });
+  window.addEventListener('touchend',   kick, { passive: true });
+  window.addEventListener('scroll',     kick, { passive: true });
+  document.getElementById('scroller').addEventListener('scroll', kick, { passive: true });
+  window.addEventListener('orientationchange', kick);
+
+  vv.addEventListener('resize', function () {
+    events++;
+    el.ev.textContent = events;
+    kick();
+  });
+  vv.addEventListener('scroll', kick);
+
+  apply();
+  kick();
+})();
+</script>
+
+</body>
+</html>

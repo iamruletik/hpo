@@ -120,19 +120,6 @@
   background: #fff;
 }
 
-.footer_stack .section_bf-footer {
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-  height: auto;
-  position: relative;
-  overflow: hidden;
-  background-color: #fff;
-  background-image: none;
-  display: block;
-  z-index: 1;
-}
-
 .footer_stack .section_bf-footer .footer-scene,
 .footer_stack .section_bf-footer.footer-scene {
   width: 100%;
@@ -163,9 +150,5 @@
   .footer_stack {
     height: auto;
     min-height: 100svh;
-  }
-
-  .footer_stack .section_bf-footer {
-    min-height: 42svh;
   }
 }
