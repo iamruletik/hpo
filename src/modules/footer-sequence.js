@@ -1,7 +1,6 @@
 import { gsap, ScrollTrigger } from '../core/gsap.js';
 
 const FRAME_COUNT = 60;
-const FRAME_PATH = 'sequence';
 
 // 991px matches the Designer's medium breakpoint and the @media edge in
 // footer-scene.css. Read once at init, not watched — crossing the breakpoint
@@ -29,19 +28,19 @@ const DRIFT = 14;
 const SCRUB_EASE = 0.05;
 const DRIFT_EASE = 0.06;
 
-// The page is served by Webflow but this script is not, so a root-relative or
-// BASE_URL path resolves against webflow.io and 404s. Derive the base from
-// where this module itself was loaded, working off the URL shape rather than
-// import.meta.env so dev and build take the same code path:
-//   dev   — <tunnel>/src/modules/footer-sequence.js  -> <tunnel>/sequence/
-//   build — <pages>/hpo/main.js                      -> <pages>/hpo/sequence/
-// Strip the query first; Vite appends ?t=… cache busters in dev.
-const MODULE_URL = new URL(import.meta.url);
-const MODULE_ROOT = `${MODULE_URL.origin}${MODULE_URL.pathname}`
-  .replace(/src\/modules\/[^/]*$/, '')
-  .replace(/[^/]*$/, '');
-
-const FRAME_BASE = `${MODULE_ROOT}${FRAME_PATH}/`;
+// Frames are served from the same Google Cloud bucket as the video assets
+// rather than from beside the bundle — measurably faster than GitHub Pages, and
+// it is where every other heavy asset on this site already lives.
+//
+// This replaces a base derived from import.meta.url, which existed only because
+// the page is served by Webflow while the script is not, so a root-relative
+// path resolved against webflow.io and 404d. An absolute URL sidesteps that
+// entirely and makes dev and build identical by construction.
+//
+// Cross-origin is fine here: these are only ever drawn, never read back, so the
+// canvas tainting that comes with it costs nothing. Adding crossOrigin would
+// require CORS headers on the bucket for no benefit.
+const FRAME_BASE = 'https://storage.googleapis.com/radiance/hpo/footer_sequence/';
 
 function framePath(index) {
   const name = String(index + 1).padStart(4, '0');

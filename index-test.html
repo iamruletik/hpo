@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>viewport growth test</title>
+<style>
+:root {
+  --tabh: 62px;
+  --gap: 10px;
+  --card-h: 100svh;      /* JS-driven modes write full visible height here */
+  --vvh-live: 100svh;    /* always the true per-frame value; drives the tab bar */
+  --vvtop: 0px;
+  --card-scale: 1;
+  --ink: #e9e7e2;
+  --dim: #8a8f98;
+  --bg: #101114;
+  --card: #1c1f25;
+  --edge: #2c313a;
+  --hot: #74d68a;
+  --warn: #e8974a;
+}
+
+* { box-sizing: border-box; margin: 0; -webkit-tap-highlight-color: transparent; }
+
+html { background: var(--bg); }
+
+body {
+  min-height: 320vh;          /* document must scroll or the URL bar never moves */
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+  overscroll-behavior-y: none;
+}
+
+/* Background stripes so document scroll position is visible behind the card. */
+.bg {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    180deg,
+    #101114 0 78px,
+    #15171b 78px 156px
+  );
+  z-index: 0;
+}
+
+/* ---------- the card under test ---------- */
+
+.card {
+  position: fixed;
+  left: var(--gap);
+  right: var(--gap);
+  top: var(--gap);
+  z-index: 2;
+
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: 22px;
+  padding: 18px 18px 16px;
+  overflow: hidden;
+  touch-action: pan-y;        /* let drags on the card scroll the document */
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card h1 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.card .note { font-size: 12px; color: var(--dim); line-height: 1.65; }
+.card .filler { font-size: 12px; color: #5f656e; line-height: 1.7; margin-top: auto; }
+
+.readout {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 10px;
+  padding: 10px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: #16181d;
+}
+.readout div { font-size: 11px; }
+.readout b { display: block; font-weight: 400; color: #6a707a; font-size: 10px; margin-bottom: 2px; }
+.readout span { font-size: 14px; font-variant-numeric: tabular-nums; }
+.grew { color: var(--hot); }
+.lag  { color: var(--warn); }
+
+/* ================= MODES =================
+   Every mode must end up with the card's bottom edge sitting
+   --tabh + --gap above the bottom of the *visible* area. */
+
+/* 1. plain dvh */
+.card[data-mode="dvh"] {
+  height: calc(100dvh - var(--tabh) - var(--gap) * 2);
+}
+
+/* 2. svh control — should never grow */
+.card[data-mode="svh"] {
+  height: calc(100svh - var(--tabh) - var(--gap) * 2);
+}
+
+/* 3. no height at all: fixed + inset, let the containing block decide */
+.card[data-mode="inset"] {
+  top: var(--gap);
+  bottom: calc(var(--tabh) + var(--gap));
+  height: auto;
+}
+
+/* 4. visualViewport sampled every rAF */
+.card[data-mode="vv-raf"] {
+  height: calc(var(--card-h) - var(--tabh) - var(--gap) * 2);
+  transform: translate3d(0, var(--vvtop), 0);
+}
+
+/* 5. lvh box, height overwritten by JS on the resize event only */
+.card[data-mode="lvh-resize"] {
+  height: calc(var(--card-h) - var(--tabh) - var(--gap) * 2);
+}
+
+/* 6. ResizeObserver watching a 100dvh probe */
+.card[data-mode="ro-probe"] {
+  height: calc(var(--card-h) - var(--tabh) - var(--gap) * 2);
+}
+
+/* 7. svh box, scaled on the compositor. Text gets counter-scaled. */
+.card[data-mode="svh-scale"] {
+  height: calc(100svh - var(--tabh) - var(--gap) * 2);
+  transform-origin: top center;
+  transform: translate3d(0, var(--vvtop), 0) scaleY(var(--card-scale));
+  will-change: transform;
+}
+.card[data-mode="svh-scale"] > * {
+  transform: scaleY(calc(1 / var(--card-scale)));
+  transform-origin: top center;
+}
+
+/* 8. legacy iOS fill-available */
+.card[data-mode="fill-available"] {
+  height: -webkit-fill-available;
+  max-height: calc(100lvh - var(--tabh) - var(--gap) * 2);
+  margin-bottom: calc(var(--tabh) + var(--gap));
+}
+
+/* 9. scroll-driven animation, zero JS. Chrome/Android only. */
+@supports (animation-timeline: scroll()) {
+  @keyframes grow-with-scroll {
+    from { height: calc(100svh - var(--tabh) - var(--gap) * 2); }
+    to   { height: calc(100lvh - var(--tabh) - var(--gap) * 2); }
+  }
+  .card[data-mode="scroll-timeline"] {
+    animation: grow-with-scroll linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0 140px;
+  }
+}
+.card[data-mode="scroll-timeline"] {
+  height: calc(100svh - var(--tabh) - var(--gap) * 2);
+}
+
+/* 10. lvh box pushed down: full large height, translated so its
+       bottom lands on the visible bottom. Never reflows. */
+.card[data-mode="lvh-shift"] {
+  height: calc(100lvh - var(--tabh) - var(--gap) * 2);
+  transform: translate3d(0, calc(var(--card-h) - 100lvh + var(--vvtop)), 0);
+  will-change: transform;
+}
+
+/* 11. interactive-widget meta swapped at runtime */
+.card[data-mode="meta-swap"] {
+  height: calc(100dvh - var(--tabh) - var(--gap) * 2);
+}
+
+/* ---------- tab bar ---------- */
+
+.tabs {
+  position: fixed;
+  left: 0; right: 0; top: 0;
+  height: var(--tabh);
+  z-index: 10;
+  transform: translate3d(0, calc(var(--vvtop) + var(--vvh-live) - var(--tabh)), 0);
+  background: #0b0c0e;
+  border-top: 1px solid var(--edge);
+  display: flex;
+  gap: 6px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  will-change: transform;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tabs button {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid var(--edge);
+  background: #171a1f;
+  color: var(--dim);
+  border-radius: 999px;
+  padding: 0 13px;
+  height: 100%;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tabs button[aria-selected="true"] {
+  background: var(--ink);
+  color: #0b0c0e;
+  border-color: var(--ink);
+}
+
+.probe { position: absolute; top: 0; left: 0; width: 1px; visibility: hidden; pointer-events: none; }
+#probe-dvh { height: 100dvh; }
+#probe-lvh { height: 100lvh; }
+#probe-svh { height: 100svh; }
+</style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div class="probe" id="probe-dvh"></div>
+<div class="probe" id="probe-lvh"></div>
+<div class="probe" id="probe-svh"></div>
+
+<div class="card" id="card" data-mode="dvh">
+  <h1 id="title">1 · plain 100dvh</h1>
+  <p class="note" id="desc"></p>
+
+  <div class="readout">
+    <div><b>card px</b><span id="r-card">–</span></div>
+    <div><b>min seen</b><span id="r-min">–</span></div>
+    <div><b>max seen</b><span id="r-max">–</span></div>
+    <div><b>growth</b><span id="r-delta" class="grew">–</span></div>
+    <div><b>vv.height</b><span id="r-vvh">–</span></div>
+    <div><b>vv.offsetTop</b><span id="r-vvtop">–</span></div>
+    <div><b>svh / lvh</b><span id="r-units">–</span></div>
+    <div><b>vv resizes</b><span id="r-ev">0</span></div>
+    <div><b>bottom gap</b><span id="r-gap">–</span></div>
+  </div>
+
+  <p class="filler">
+    Drag anywhere to scroll the page. The bottom gap number is the distance
+    between the card's bottom edge and the bottom of the visible area — that is
+    the value that should stay constant. Anything that drifts while the URL bar
+    animates is the failure you are looking for. Tap a tab to switch technique;
+    min/max reset on every switch.
+  </p>
+</div>
+
+<nav class="tabs" id="tabs" aria-label="technique"></nav>
+
+<script>
+(function () {
+  var vv = window.visualViewport;
+  var root = document.documentElement;
+  var card = document.getElementById('card');
+  var tabs = document.getElementById('tabs');
+
+  var probeDvh = document.getElementById('probe-dvh');
+  var probeLvh = document.getElementById('probe-lvh');
+  var probeSvh = document.getElementById('probe-svh');
+
+  var out = {
+    card:  document.getElementById('r-card'),
+    min:   document.getElementById('r-min'),
+    max:   document.getElementById('r-max'),
+    delta: document.getElementById('r-delta'),
+    vvh:   document.getElementById('r-vvh'),
+    vvtop: document.getElementById('r-vvtop'),
+    units: document.getElementById('r-units'),
+    ev:    document.getElementById('r-ev'),
+    gap:   document.getElementById('r-gap')
+  };
+
+  var MODES = [
+    { id: 'dvh',             tab: '1 dvh',        title: '1 · plain 100dvh',
+      desc: 'Pure CSS. The UA recomputes dvh in discrete steps rather than interpolating, so the card jumps and the bottom gap breathes during the chrome animation. No JS involved.' },
+
+    { id: 'svh',             tab: '2 svh',        title: '2 · plain 100svh (control)',
+      desc: 'Small viewport height. Never grows — that is the point of including it. Bottom gap should balloon once the URL bar retracts. Use it as your zero line.' },
+
+    { id: 'inset',           tab: '3 inset:0',    title: '3 · fixed + top/bottom, no height',
+      desc: 'No height declared at all; the fixed-positioning containing block resolves it. On iOS this follows the layout viewport, which does not shrink with the URL bar. On Android Chrome it tracks better.' },
+
+    { id: 'vv-raf',          tab: '4 vv+rAF',     title: '4 · visualViewport sampled per frame',
+      desc: 'requestAnimationFrame reads visualViewport.height every frame and writes it to a custom property. Tracks the chrome animation exactly, at the cost of a layout pass per frame. No lift-finger delay.' },
+
+    { id: 'lvh-resize',      tab: '5 lvh+resize', title: '5 · lvh box, JS height on resize event',
+      desc: 'Same JS value, but only written when visualViewport fires resize. Watch the resize counter: it fires a handful of times across an animation that lasts twenty-odd frames. That sparseness is the delay.' },
+
+    { id: 'ro-probe',        tab: '6 RO probe',   title: '6 · ResizeObserver on a 100dvh probe',
+      desc: 'A hidden element sized 100dvh, watched by ResizeObserver. Fires whenever the UA recomputes dvh, so it is exactly as granular as dvh itself — no better, no worse, plus observer overhead.' },
+
+    { id: 'svh-scale',       tab: '7 scaleY',     title: '7 · svh box, compositor scaleY',
+      desc: 'Fixed svh box scaled vertically to the live ratio. Compositor-only, so it is smooth, but it stretches the border radius and the text, and the counter-scale on children only half-fixes it. Included so you can see why.' },
+
+    { id: 'fill-available',  tab: '8 fill-avail', title: '8 · -webkit-fill-available',
+      desc: 'The pre-dvh iOS workaround. Resolves against the large viewport on Safari, so it behaves roughly like lvh: correct when chrome is hidden, overflows when it is showing.' },
+
+    { id: 'scroll-timeline', tab: '9 scroll-tl',  title: '9 · scroll-driven animation, zero JS',
+      desc: 'Animates height from svh to lvh across the first 140px of scroll using animation-timeline: scroll(). No JS at all. Chrome and Android only; Safari ignores it and you get the svh control. Decoupled from the real chrome state, so it is a guess that happens to look right.' },
+
+    { id: 'lvh-shift',       tab: '10 lvh shift', title: '10 · lvh box, translated up',
+      desc: 'Card is permanently lvh-sized and moved with translate3d so its bottom edge lands on the visible bottom. Layout never changes; only the transform does. Smoothest of the correct options, but the top of the card goes off-screen when chrome is showing.' },
+
+    { id: 'meta-swap',       tab: '11 meta',      title: '11 · interactive-widget swap',
+      desc: 'Rewrites the viewport meta to interactive-widget=resizes-content, then dvh. Only affects keyboard behaviour, and only on Chrome. Open the keyboard by tapping the card to see any difference.' }
+  ];
+
+  // ---- shared measurement ----
+
+  var minH = Infinity, maxH = -Infinity;
+  var resizes = 0;
+  var mode = MODES[0];
+  var rafId = 0, running = false, stopAt = 0, frame = 0;
+
+  function px(v) { return Math.round(v * 10) / 10; }
+
+  function visibleHeight() {
+    return vv ? vv.height : window.innerHeight;
+  }
+  function visibleTop() {
+    if (!vv) return 0;
+    return Math.max(0, Math.min(vv.offsetTop || 0, window.innerHeight));
+  }
+
+  function writeVars() {
+    root.style.setProperty('--vvh-live', visibleHeight() + 'px');
+    root.style.setProperty('--card-h', visibleHeight() + 'px');
+    root.style.setProperty('--vvtop', visibleTop() + 'px');
+    root.style.setProperty(
+      '--card-scale',
+      (visibleHeight() / Math.max(1, probeSvh.getBoundingClientRect().height)).toFixed(4)
+    );
+  }
+
+  function readout() {
+    var rect = card.getBoundingClientRect();
+    var h = rect.height;   // already includes scaleY for mode 7
+    if (h < minH) minH = h;
+    if (h > maxH) maxH = h;
+
+    var vh = visibleHeight();
+    var vt = visibleTop();
+    var bottomGap = (vt + vh) - rect.bottom;
+
+    out.card.textContent  = px(h);
+    out.min.textContent   = px(minH);
+    out.max.textContent   = px(maxH);
+    out.delta.textContent = px(maxH - minH);
+    out.vvh.textContent   = px(vh);
+    out.vvtop.textContent = px(vt);
+    out.units.textContent =
+      Math.round(probeSvh.getBoundingClientRect().height) + ' / ' +
+      Math.round(probeLvh.getBoundingClientRect().height);
+    out.gap.textContent   = px(bottomGap);
+    out.gap.className     = Math.abs(bottomGap - 72) > 8 ? 'lag' : 'grew';
+  }
+
+  // The tab bar always uses technique 4 so it stays put no matter what
+  // the card is doing. --card-h is written every frame regardless of mode;
+  // modes that ignore it simply do not reference it in CSS.
+  function tick() {
+    writeVars();
+    if ((frame++ & 1) === 0) readout();
+
+    if (mode.id === 'ro-probe' || mode.id === 'lvh-resize') {
+      // these modes must NOT get per-frame updates — restore their own value
+      root.style.setProperty('--card-h', modeHeight + 'px');
+    }
+
+    if (performance.now() > stopAt) { running = false; return; }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function kick() {
+    stopAt = performance.now() + 900;
+    if (running) return;
+    running = true;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  // ---- per-mode drivers ----
+
+  var modeHeight = 0;
+  var ro = null;
+
+  function enterMode(m) {
+    if (ro) { ro.disconnect(); ro = null; }
+    mode = m;
+    minH = Infinity; maxH = -Infinity;
+    modeHeight = visibleHeight();
+    card.dataset.mode = m.id;
+    document.getElementById('title').textContent = m.title;
+    document.getElementById('desc').textContent = m.desc;
+
+    Array.prototype.forEach.call(tabs.children, function (b) {
+      b.setAttribute('aria-selected', b.dataset.id === m.id ? 'true' : 'false');
+    });
+
+    if (m.id === 'ro-probe') {
+      ro = new ResizeObserver(function () {
+        modeHeight = probeDvh.getBoundingClientRect().height;
+      });
+      ro.observe(probeDvh);
+    }
+
+    if (m.id === 'meta-swap') {
+      setMeta('width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content');
+    } else {
+      setMeta('width=device-width, initial-scale=1, viewport-fit=cover');
+    }
+
+    kick();
+  }
+
+  function setMeta(content) {
+    var el = document.querySelector('meta[name="viewport"]');
+    if (el.getAttribute('content') !== content) el.setAttribute('content', content);
+  }
+
+  // ---- events ----
+
+  if (vv) {
+    vv.addEventListener('resize', function () {
+      resizes++;
+      out.ev.textContent = resizes;
+      modeHeight = vv.height;              // drives mode 5
+      kick();
+    });
+    vv.addEventListener('scroll', kick);
+  }
+
+  ['touchstart', 'touchmove', 'touchend', 'scroll', 'orientationchange'].forEach(function (ev) {
+    window.addEventListener(ev, kick, { passive: true });
+  });
+
+  // ---- build tabs ----
+
+  MODES.forEach(function (m) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = m.tab;
+    b.dataset.id = m.id;
+    b.setAttribute('aria-selected', 'false');
+    b.addEventListener('click', function () { enterMode(m); });
+    tabs.appendChild(b);
+  });
+
+  writeVars();
+  enterMode(MODES[0]);
+})();
+</script>
+
+</body>
+</html>

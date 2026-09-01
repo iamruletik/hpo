@@ -162,7 +162,7 @@ export function initRequestModal() {
     isClosing = false;
     previouslyFocusedElement = trigger || document.activeElement;
 
-    lockPageScroll();
+    lockPageScroll({ stopLenis: true });
     modal.style.display = 'flex';
     modal.style.visibility = 'visible';
     modal.setAttribute('aria-hidden', 'false');

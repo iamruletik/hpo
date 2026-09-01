@@ -49,6 +49,18 @@ function isTouchDevice() {
   return window.matchMedia('(hover: none), (pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 }
 
+// Deliberately NOT isTouchDevice(). That returns true for maxTouchPoints > 0,
+// which includes touchscreen laptops — those do have a real pointer and should
+// keep their hover effects. This asks the same question the CSS @media query
+// asks, so the two never disagree.
+//
+// It matters here because mouseenter is emulated on tap: without the guard, one
+// tap leaves a title faded up or the close button parked at rotation 90, with no
+// mouseleave ever coming to undo it.
+function supportsHover() {
+  return window.matchMedia('(hover: hover)').matches;
+}
+
 // window.innerHeight is unreliable on mobile (browser chrome show/hide), so
 // measure a real 100svh element instead when on a touch device.
 function getViewportHeight() {
@@ -97,6 +109,8 @@ function revertModalTitleSplit(modalEl) {
 }
 
 function bindCloseHoverEffects(modalEl) {
+  if (!supportsHover()) return;
+
   const closeButton = modalEl.querySelector('.solution-modal-close');
   if (!closeButton || closeButton.dataset.hoverReady === 'true') return;
   closeButton.dataset.hoverReady = 'true';
@@ -796,21 +810,23 @@ function setupSolutionsSection(section, sharedModal) {
     const fadeTo = (value) =>
       gsap.to(button, { autoAlpha: value, duration: 0.25, ease: 'power2.out', overwrite: 'auto' });
 
-    button.addEventListener('mouseenter', () => {
-      if (index === activeIndex) {
-        moreButton?.classList.add('is-hovered');
-        return;
-      }
-      // Skip the ones parked off-screen at zero, or they would fade in.
-      if (!button._baseAlpha) return;
-      fadeTo(Math.min(1, button._baseAlpha + 0.22));
-    });
+    if (supportsHover()) {
+      button.addEventListener('mouseenter', () => {
+        if (index === activeIndex) {
+          moreButton?.classList.add('is-hovered');
+          return;
+        }
+        // Skip the ones parked off-screen at zero, or they would fade in.
+        if (!button._baseAlpha) return;
+        fadeTo(Math.min(1, button._baseAlpha + 0.22));
+      });
 
-    button.addEventListener('mouseleave', () => {
-      moreButton?.classList.remove('is-hovered');
-      if (index === activeIndex || !button._baseAlpha) return;
-      fadeTo(button._baseAlpha);
-    });
+      button.addEventListener('mouseleave', () => {
+        moreButton?.classList.remove('is-hovered');
+        if (index === activeIndex || !button._baseAlpha) return;
+        fadeTo(button._baseAlpha);
+      });
+    }
 
     button.addEventListener('click', () => {
       if (modal._isOpenOrOpening) return;

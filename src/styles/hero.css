@@ -22,10 +22,6 @@
   line-height: 1.25;
 }
 
-.lottie-json canvas {
-  transform: scale(1.77) translate(-20%, -25%);
-}
-
 .line-mask {
   display: block;
   overflow: hidden;
@@ -60,19 +56,12 @@
    .page-wrapper nor .main carries a z-index or transform, so .header competes
    in this same body-level stacking context rather than being trapped inside one.
 
-   bottom is deliberately overshot rather than sized to the viewport. Neither
-   lvh, dvh, nor a measured innerHeight describes the fixed containing block on
-   both iOS and Chrome Android while a URL bar is collapsing, and every attempt
-   to track it left a white band at the bottom on one of them. Pushing the
-   bottom edge far past any possible screen means the hole simply has no bottom
-   edge on screen to get wrong, in any bar state, with nothing to keep in sync.
+   height is animated by hero-aperture.js from 100svh to 100lvh as part of the
+   same scroll tween that opens the hole — see the note there. 100svh here is
+   the closed state and the value before JS runs.
 
-   The cost is that the plane has no visible inset along the bottom — it reads
-   8px on three sides. That was already true of the lvh version, minus the jank.
-
-   transform-origin is top-centre so the tween can scale horizontally for the
-   side insets while the top inset comes from a plain y offset. Scaling
-   vertically would move the bottom edge, which only exists to be off screen.
+   transform-origin is top-centre so the tween scales about the top edge, which
+   is the one the y offset controls.
 
    No will-change here on purpose. WebKit folds the shadow spread into the
    layer's paint bounds, and a promoted layer sized to include 400vmax of
@@ -82,12 +71,110 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: -25vh;
+  height: 100svh;
   z-index: 9;
   transform-origin: 50% 0%;
   border-radius: 0;
   box-shadow: 0 0 0 400vmax #fff;
   pointer-events: none;
+}
+
+/* ---- 9-slice aperture (MODE = 'slices' in hero-aperture.js) --------------
+   Alternative to the box-shadow plane. Same visual result, built from real
+   element boxes instead: a box-shadow paints OUTSIDE its border box, and that
+   is the one thing that does not reach past iOS 26's floating address bar,
+   while the hero video's own 150% box does. These bars are boxes, overhung
+   past the bottom the same way, so they should reach if anything does.
+
+   Each slice is a separate position:fixed child of body, never nested in a
+   transformed parent — a transformed ancestor would become their containing
+   block and turn them back into one clipped layer, which is the thing we are
+   trying to get away from.
+
+   Bars animate on scaleX/scaleY or translate only. The corners are never
+   scaled, which is what keeps the radius pixel-exact instead of squashing it
+   into an ellipse. They fade out at the end rather than un-rounding. */
+.hero-slice,
+.hero-corner {
+  position: fixed;
+  z-index: 9;
+  background: #fff;
+  pointer-events: none;
+}
+
+.hero-slice--top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--slice-inset);
+  transform-origin: 50% 0%;
+}
+
+/* Parked at the top and translated down to the hole's bottom edge, so its own
+   height only has to be big enough to overhang the screen from there. */
+.hero-slice--bottom {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60vh;
+  transform-origin: 50% 0%;
+}
+
+.hero-slice--left {
+  top: 0;
+  left: 0;
+  width: var(--slice-inset);
+  height: 160vh;
+  transform-origin: 0% 50%;
+}
+
+.hero-slice--right {
+  top: 0;
+  right: 0;
+  width: var(--slice-inset);
+  height: 160vh;
+  transform-origin: 100% 50%;
+}
+
+/* All four are anchored to the top and translated into place vertically, but
+   the horizontal anchor has to be the edge each one belongs to — left-anchoring
+   the right-hand pair put them 8px off the left edge of the screen. */
+.hero-corner {
+  top: 0;
+  width: var(--slice-radius);
+  height: var(--slice-radius);
+}
+
+.hero-corner--tl,
+.hero-corner--bl {
+  left: 0;
+}
+
+.hero-corner--tr,
+.hero-corner--br {
+  right: 0;
+}
+
+/* The transparent quarter-disc is the hole's corner; the white around it is the
+   plane. Circle centred on whichever corner of the box faces the hole. */
+.hero-corner--tl {
+  -webkit-mask: radial-gradient(circle var(--slice-radius) at 100% 100%, transparent 99%, #000 100%);
+  mask: radial-gradient(circle var(--slice-radius) at 100% 100%, transparent 99%, #000 100%);
+}
+
+.hero-corner--tr {
+  -webkit-mask: radial-gradient(circle var(--slice-radius) at 0% 100%, transparent 99%, #000 100%);
+  mask: radial-gradient(circle var(--slice-radius) at 0% 100%, transparent 99%, #000 100%);
+}
+
+.hero-corner--bl {
+  -webkit-mask: radial-gradient(circle var(--slice-radius) at 100% 0%, transparent 99%, #000 100%);
+  mask: radial-gradient(circle var(--slice-radius) at 100% 0%, transparent 99%, #000 100%);
+}
+
+.hero-corner--br {
+  -webkit-mask: radial-gradient(circle var(--slice-radius) at 0% 0%, transparent 99%, #000 100%);
+  mask: radial-gradient(circle var(--slice-radius) at 0% 0%, transparent 99%, #000 100%);
 }
 
 /* Webflow ships this at opacity:0, expecting a scroll-scrubbed crossfade
@@ -101,12 +188,39 @@
   overflow: hidden;
 }
 
-.scroll-down-wrap:hover .scroll-down-icon {
-  transform: translateY(150%);
+/* Arrow roll. The Designer already ships everything this needs: two copies of
+   the icon (.is-f, .is-s) inside .s-icon-wrapper, which is position:relative
+   with overflow:hidden, and .is-s parked at bottom:-100% — one wrapper-height
+   below the mask. transition: transform .3s is on .scroll-down-icon there too.
+
+   What was wrong: the rules below used to target `.scroll-down-icon`
+   unqualified, so BOTH copies moved by the same 150% together. The second copy
+   travelled alongside the first instead of replacing it, which is why the arrow
+   went into the mask and nothing came back out.
+
+   Moving both by exactly -100% is what makes it a roll rather than a shove:
+   .is-f leaves through the top of the mask and .is-s rises from bottom:-100% to
+   sit exactly where .is-f was. Same distance, opposite roles. 150% would
+   overshoot and leave a gap mid-transition. */
+/* display:block is load-bearing, not tidiness. The icons are <img>, which is
+   inline by default, so each one sits on a text baseline with descender space
+   under it — that makes .s-icon-wrapper a few px TALLER than the icon it takes
+   its height from. bottom:-100% on .is-s then resolves against the wrapper's
+   height while translateY(-100%) resolves against the icon's own height, the
+   two distances disagree, and the roll ends with part of both copies showing.
+   Block removes the baseline gap so wrapper height === icon height and the two
+   percentages finally mean the same thing. */
+.scroll-down-icon {
+  display: block;
 }
 
-.scroll-down-wrap.is-f:hover .scroll-down-icon {
-  transform: translateY(-150%);
+/* No (hover: hover) guard. It was there to stop a tap leaving :hover stuck
+   mid-roll on iOS — but both copies are the same arrow, so the stuck state is
+   pixel-identical to the rest state and there is nothing to strand. Excluding
+   touch only meant phones never got the animation at all. */
+.scroll-down-wrap:hover .scroll-down-icon,
+.scroll-down-wrap:focus-visible .scroll-down-icon {
+  transform: translateY(-100%);
 }
 
 .hero_hardware-blur-layer {

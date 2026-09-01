@@ -203,3 +203,32 @@ body.is-platform-modal-open {
    purpose — it shared .solution-modal-close with the solution modal's button
    until now, and a repo copy would just recreate the same double-owner problem
    from the other side. */
+
+/* ==========================================================================
+   Sticky hold — built by platform-explorer-sticky.js, which wraps the section
+   in .platform-explorer-sticky at runtime.
+
+   The hold distance is whatever this wrapper has spare over the section's own
+   height: a sticky element is constrained by its containing block's padding
+   box, so the section stays put until that slack has scrolled past, then
+   releases and the next section arrives.
+
+   No pin spacer, no measurement, nothing to re-measure on resize — the browser
+   runs the whole thing on the compositor.
+
+   NOTE the unit: at 150vh the hold is (150vh - section height), so it varies
+   with the viewport, and it goes NEGATIVE wherever 150vh is under the section's
+   ~1300px — under about a 870px viewport the section overflows its own wrapper
+   and there is no travel left to stick through. A fixed px value would decouple
+   the two. Left as vh deliberately.
+   ========================================================================== */
+.platform-explorer-sticky {
+  height: 150vh;
+}
+
+/* Designer has the section at position:relative; z-index 6. sticky keeps the
+   stacking context that z-index needs, so nothing else has to change. */
+.platform-explorer-sticky > .section_platform-explorer {
+  position: sticky;
+  top: 0;
+}

@@ -4,6 +4,13 @@
 // Firefox ignore the media attribute on a <video> child and just take the first
 // playable entry, so a markup-only ladder would hand phones the desktop file.
 //
+// H.264 only. There was an AV1 ladder in front of this, gated on canPlayType,
+// and it cost more than it saved: the trace showed a phone fetching BOTH
+// encodes for one element — 1229kB of AV1 plus 2742kB of H.264 — and the AV1
+// stream repeatedly losing hardware decode mid-playback, which is far more
+// expensive to fall back from than H.264 ever is. Every device that runs this
+// site has a hardware H.264 decoder.
+//
 // Runs from preloader-entry.js, before initPreloader(), and that ordering is
 // load-bearing: preloader.js gates the curtain on every hero <video> reaching
 // readyState >= 2, and a video with no src never gets there — it fires no
@@ -11,27 +18,17 @@
 // on every load.
 const HERO_VIDEO = '.hero-picture';
 
+const BASE = 'https://storage.googleapis.com/radiance/hpo/';
+const SMALL_QUERY = '(max-width: 900px)';
+
+const SOURCES = {
+  small: `${BASE}hero-768.mp4`,
+  large: `${BASE}hero-1536-crf24.mp4`,
+};
+
 export function initHeroVideoSource() {
   const video = document.querySelector(HERO_VIDEO);
   if (!video) return;
 
-  const base = 'https://storage.googleapis.com/radiance/hpo/';
-  const small = window.matchMedia('(max-width: 900px)').matches;
-  const av1 = base + (small ? 'hero-768-av1.mp4' : 'hero-1536-av1.mp4');
-  const h264 = base + (small ? 'hero-768.mp4' : 'hero-1536-crf24.mp4');
-
-  // Safari only decodes AV1 where there is hardware for it (M3+, A17 Pro+) and
-  // has no software fallback, so most Macs land on H.264. canPlayType reports
-  // that honestly; the error handler covers anything that lies.
-  const canAv1 = video.canPlayType('video/mp4; codecs="av01.0.08M.08"') !== '';
-
-  video.addEventListener(
-    'error',
-    () => {
-      if (video.src !== h264) video.src = h264;
-    },
-    { once: true }
-  );
-
-  video.src = canAv1 ? av1 : h264;
+  video.src = window.matchMedia(SMALL_QUERY).matches ? SOURCES.small : SOURCES.large;
 }

@@ -5,19 +5,24 @@ import { ScrollTrigger } from './core/gsap.js';
 import { initLenis } from './core/lenis.js';
 import { initHeroVideoParallax } from './modules/hero-video-parallax.js';
 import { initHeroAperture } from './modules/hero-aperture.js';
+import { initHeroHardwareParallax } from './modules/hero-hardware-parallax.js';
+import { initPlatformExplorerSticky } from './modules/platform-explorer-sticky.js';
 import { initHeroTextSplit } from './modules/hero-text-split.js';
 import { initTitleLineReveal } from './modules/title-line-reveal.js';
 import { initNavLogoTheme } from './modules/nav-logo-theme.js';
 import { initThemeColorSwap } from './modules/theme-color-swap.js';
 import { initSecondaryButtonRoll } from './modules/second-button.js';
-import { initSafariVideoSwap } from './modules/safari-video-swap.js';
+import { initOfferIcons } from './modules/offer-icons.js';
 import { initFootIcon } from './modules/foot-icon.js';
 import { initMorphSvgAim } from './modules/morph-svg-aim.js';
+import { initAimImageReveal } from './modules/aim-image-reveal.js';
 import { initTimeline } from './modules/timeline.js';
+import { initHistoryNumberRoll } from './modules/history-number-roll.js';
 import { initMenu } from './modules/menu.js';
 import { initRequestModal } from './modules/request-modal.js';
 import { initTabs } from './modules/tabs.js';
 import { initSolutionCarousel } from './modules/solution-carousel.js';
+import { initForWhoViewport } from './modules/for-who-viewport.js';
 import { initCtaParallax } from './modules/cta-parallax.js';
 import { initEveryChamberReveal } from './modules/every-chamber-reveal.js';
 import { initNavProgress } from './modules/nav-progress.js';
@@ -57,7 +62,7 @@ function runEarly() {
   // second-button.js calls — keep the pair together and in this order.
   initThemeColorSwap();
   initSecondaryButtonRoll();
-  initSafariVideoSwap();
+  initOfferIcons();
   initMenu();
   initRequestModal();
 
@@ -67,6 +72,11 @@ function runEarly() {
   //     rebuilds them from the CMS source, so late init shows a bare section.
   //   overview-reveal owns elements CSS hides (.scroll-fill-text,
   //     .overview_lower are visibility:hidden) and nothing else reveals them.
+  //
+  // for-who-viewport goes first of the three: it sets .solutions-sticky to its
+  // real height, and the carousel measures that box to place the title list and
+  // the card.
+  initForWhoViewport();
   initSolutionCarousel();
   initOverviewReveal();
 
@@ -76,6 +86,15 @@ function runEarly() {
   // collapse landed after the curtains opened and shoved every section below it
   // upward: solutions, aim, slider, footer. That is the global jump.
   initTabs();
+
+  // Wraps the section in a sticky container, which grows the document by the
+  // hold distance — layout-changing, so it belongs up here rather than
+  // deferred, where it would shift everything below it after the curtains open.
+  //
+  // Nothing measures anything, so unlike a ScrollTrigger pin this does not care
+  // whether tabs.js has filtered the cards yet. Kept next to initTabs() anyway
+  // because they act on the same section.
+  initPlatformExplorerSticky();
 
   // Also layout-changing, and below the fold rather than above it: timeline.js
   // measures the history slider and writes --history-height on the section.
@@ -96,10 +115,18 @@ function runEarly() {
 }
 
 const DEFERRED = [
+  // Scrubbed, so nothing to see until the user has scrolled well past the point
+  // the curtains open — no reason for it to compete with the intro.
+  initHeroHardwareParallax,
   initMorphSvgAim,
+  // Mobile counterpart to the morphing SVG above, same section.
+  initAimImageReveal,
   initCtaParallax,
   initEveryChamberReveal,
   initNavProgress,
+  // Rewrites .history_item-big markup, so it must follow initTimeline() — that
+  // measures the track and would otherwise size it against the old text nodes.
+  initHistoryNumberRoll,
   initCtaReveal,
   initFooterSequence,
   initFooterGlowShader,

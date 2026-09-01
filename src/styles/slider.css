@@ -127,7 +127,16 @@
   }
 
   .history_item {
-    width: calc((100vw - 2 * var(--history-grid-padding)) / 1.091);
+    width: calc(100vw - 2 * var(--history-grid-padding));
+  }
+
+  /* Designer puts border-left on every .history_item as the separator between
+     cards. Now that each one is the full container width, the first card's
+     border sits flush against the left edge of the track and reads as a stray
+     rule rather than a divider — there is nothing to its left to divide it
+     from. Every other item keeps its own. */
+  .history_item:first-child {
+    border-left: 0;
   }
 
   .history_description {
@@ -137,4 +146,36 @@
   .history_image {
     width: calc((100vw - 2 * var(--history-grid-padding)) / 1.714);
   }
+}
+
+/* ==========================================================================
+   Number drum — built by history-number-roll.js inside .history_item-big.
+
+   The window is one digit tall with overflow hidden; the reel below it holds
+   every digit from 1 to the card's own number, and translating the reel is what
+   makes the intermediate digits slide past. Height is written in px by the
+   module after measuring a digit, because the Designer sets line-height: .8em
+   on this class and a 1em window would clip the glyph.
+   ========================================================================== */
+.history-drum {
+  display: inline-flex;
+  align-items: flex-start;
+}
+
+.history-drum__window {
+  display: inline-block;
+  overflow: hidden;
+  /* Until the module measures a digit. Anything non-zero avoids a flash of the
+     whole reel stacked vertically on the first frame. */
+  height: 1em;
+}
+
+.history-drum__reel,
+.history-drum__digit,
+.history-drum__lead {
+  display: block;
+}
+
+.history-drum__reel {
+  will-change: transform;
 }

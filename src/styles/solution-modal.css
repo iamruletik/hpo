@@ -158,8 +158,12 @@ html.solution-modal-lock .section_for-who .solutions-sticky {
 }
 
 /* Only the active line opens up; the parens are invisible on the others. */
-.solution-title-line.is-active:hover {
-  gap: 0.35em;
+/* Hover only. A tap fires :hover on mobile and there is no un-hover to follow,
+   so the gap opened on first touch and stayed open for the rest of the session. */
+@media (hover: hover) {
+  .solution-title-line.is-active:hover {
+    gap: 0.35em;
+  }
 }
 
 .solution-name {
@@ -515,10 +519,23 @@ body.solution-modal-lock {
     height: var(--solutions-scroll-height-mobile, 500vh);
   }
 
+  /* .header is position:fixed at inset 1.5rem, so 1.5rem here put this
+     directly underneath it — the meta row sat behind the nav whenever the
+     section filled the screen. Cleared by the nav's own height plus a gap. */
   .solutions-meta {
-    top: 1.5rem;
+    top: 6rem;
     right: 1.5rem;
     left: 1.5rem;
+  }
+
+  /* Anchor for the title list. The buttons are absolutely positioned at 50% of
+     THIS box and the active one is centred on that line, so the list's own top
+     decides where the column sits. At -30% the anchor landed at 20% of the
+     sticky box: by the last item every earlier title had stacked above it and
+     the bottom half of the section was empty. 0 puts the anchor at the vertical
+     centre — 50% of the section height, which is the cap you asked for. */
+  .solutions-title-list {
+    top: 0;
   }
 
   .solution-step-wrapper {

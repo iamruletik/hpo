@@ -1,6 +1,18 @@
 import Lenis from 'lenis';
 import { gsap, ScrollTrigger } from './gsap.js';
 
+// Containers that manage their own internal scroll: platform-modal-content
+// drags horizontally on mobile, request-modal-content and
+// solution-modal-content scroll vertically. Each already carries its own
+// overscroll-behavior: contain so a gesture reaching their edge does not chain
+// into the page behind.
+//
+// Lives here rather than in scroll-lock.js because Lenis needs it at
+// construction and scroll-lock imports from this module — the other direction
+// would be a cycle.
+export const SELF_SCROLLING_SELECTOR =
+  '.platform-modal-content, .request-modal-content, .solution-modal-content';
+
 let lenis;
 
 export function initLenis() {
@@ -32,6 +44,21 @@ export function initLenis() {
     autoResize: true,
     anchors: { offset: -80 },
     stopInertiaOnNavigate: true,
+    // Hands these containers back to native scrolling, and — the part that
+    // matters — Lenis checks `prevent` and returns BEFORE its stopped/locked
+    // branch:
+    //
+    //   if (composedPath.find(node => prevent?.(node) …)) return;
+    //   if (this.isStopped || this.isLocked) { event.preventDefault(); return; }
+    //
+    // Without it, lenis.stop() preventDefaults every wheel and touch event
+    // site-wide with no target exemption, which is what broke the platform
+    // modal's touch drag and is why scroll-lock.js refused to call stop() at
+    // all. With it, stop() leaves these alone and becomes usable.
+    //
+    // prevent receives each node along the composed path, so matches() is
+    // enough — no need to walk ancestors.
+    prevent: (node) => node.matches?.(SELF_SCROLLING_SELECTOR) ?? false,
   });
 
   window.lenis = lenis;

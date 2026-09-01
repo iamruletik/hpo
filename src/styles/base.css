@@ -24,6 +24,22 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Safari 26 (Liquid Glass) does not composite the strip behind the floating
+   address bar from the page's layers. It picks a colour: it samples
+   background-color and backdrop-filter off fixed/sticky elements near the
+   viewport edges, and falls back to html/body background-color when none
+   qualify. That is why setting a translucent background on .hero-aperture
+   produced a flat, non-matching fill down there rather than the same blend.
+   theme-color is ignored for this.
+   Webflow sets background-color on body but leaves html unset, and an unset
+   html falls back to white in light mode and BLACK in dark mode. Stating it
+   explicitly is what keeps that strip the page colour instead of whatever
+   Safari guessed. */
+html,
+body {
+  background-color: #fff;
+}
+
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
   display: none;

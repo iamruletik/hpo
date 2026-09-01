@@ -1,19 +1,16 @@
-.foot-icon-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: contain;
-  background: transparent;
-  opacity: 0;
-  pointer-events: none;
-  visibility: hidden;
-}
+/* Designer has .lottie-json at 5.5rem with transform: scale(2) on desktop, so
+   the icon painted at ~176 CSS px — 352 device px at DPR 2, well past what a
+   144.6px sprite cell can fill without going soft. Unscaled it renders at its
+   own 5.5rem/88px, which is 176 at DPR 2: close enough to the cell that the
+   upscale is barely there.
 
-.foot-icon-video.is-active {
-  opacity: 1;
-  visibility: visible;
+   transform-origin is centre, so dropping the scale shrinks around the same
+   point and the left: 43% placement still lands where it did.
+
+   Belongs in the Designer really — it is a layout value. Here because it is one
+   line and it travels with the sprite work that made it wrong. */
+.lottie-json {
+  transform: none;
 }
 
 .foot-icon-anim {
@@ -22,4 +19,17 @@
   height: 100%;
   overflow: hidden;
   background: transparent;
+}
+
+/* Built by foot-icon.js, which draws one cell of the sprite sheet per frame.
+   The .foot-icon-video rules that used to be here are gone with the two <video>
+   elements they styled — that pair existed only to serve HEVC to Safari and VP9
+   to Chrome for the alpha channel, which a WebP sheet carries on its own. */
+.foot-icon-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
