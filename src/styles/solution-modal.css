@@ -443,12 +443,11 @@ body.solution-modal-lock {
 }
 
 @media (max-width: 991px) {
-  .solutions-meta {
-    top: 14vh;
-    right: 5vw;
-    left: 5vw;
-    grid-template-columns: 80px 1fr 30px;
-  }
+  /* .solutions-meta used to be positioned here too — top: 14vh, 5vw insets and
+     a grid-template-columns. All of it was dead: a second @media (max-width:
+     991px) further down sets the same properties and wins on source order, and
+     the grid columns never applied at all because the Designer makes this a
+     flex container at this breakpoint. Its live rule is in that later block. */
 
   .solutions-card {
     top: auto;
@@ -521,11 +520,26 @@ body.solution-modal-lock {
 
   /* .header is position:fixed at inset 1.5rem, so 1.5rem here put this
      directly underneath it — the meta row sat behind the nav whenever the
-     section filled the screen. Cleared by the nav's own height plus a gap. */
+     section filled the screen. Cleared by the nav's own height plus a gap.
+
+     space-between overrides the Designer's justify-content: flex-end, which
+     bunched the row against one side; with left and right pinned the children
+     now spread across the full width. */
   .solutions-meta {
     top: 6rem;
-    right: 1.5rem;
-    left: 1.5rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+    justify-content: space-between;
+  }
+
+  /* Designer fixes this at width: 3rem, which is what forced the number and its
+     separator apart by a set amount regardless of how wide the digits render.
+     Sizing to content and spacing with a gap keeps the pair tight at any digit
+     count. justify-content: space-between comes from the Designer and is inert
+     once the box is content-sized, so the gap is what does the work. */
+  .solutions-step {
+    width: auto;
+    gap: 0.5rem;
   }
 
   /* Anchor for the title list. The buttons are absolutely positioned at 50% of

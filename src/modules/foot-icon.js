@@ -9,25 +9,37 @@ import { gsap, ScrollTrigger } from '../core/gsap.js';
 // runtime branch to choose between them. A WebP sheet has alpha natively, so
 // all of that collapses into one file every engine reads the same way.
 //
-// Sheet is 3615x3470: a grid 25 cells wide by 24 tall, so each cell is
-// 144.6 x 144.583. Cells are neither integer nor square, which is why this
-// draws with canvas rather than CSS background-position — a fractional cell
-// bleeds a sliver of its neighbour at every step, and walking a 2D grid in CSS
-// needs two nested steps() animations. A source rect handles both without
-// complaint.
+// Drawn with canvas rather than CSS background-position: walking a 2D grid in
+// CSS needs two nested steps() animations, and the reveal-then-loop handoff
+// needs a frame range rather than a fixed cycle. A source rect gives both.
 const ANIMATION = '[data-foot-animation]';
-const SHEET = 'https://storage.googleapis.com/radiance/hpo/spritesheet-full.webp';
 
-const SHEET_WIDTH = 3615;
-const SHEET_HEIGHT = 3470;
-const COLUMNS = 25;
-const ROWS = 24;
+// The grid MUST divide the sheet exactly. The first sheet was 3615x3470 over
+// 25x24, i.e. 144.6 x 144.583 per cell, and that is what made the sprite shake
+// on iOS: every frame's source origin landed on a different sub-pixel phase
+// (0, 144.6, 289.2, 433.8 …), so the GPU resampled each one at a different
+// offset. Rounding in the player only moves the compromise around — rounding
+// origins and flooring sizes are two different errors and neither makes the
+// phases agree. An integer grid removes the question: every origin is a
+// multiple of the cell and every frame samples an identically aligned box.
+//
+// scripts/resquare-spritesheet.mjs rebuilds a sheet to an exact grid if a new
+// export ever comes back fractional.
+const SHEET = {
+  src: 'https://storage.googleapis.com/radiance/hpo/spritesheet-144-tight-28.webp',
+  width: 4032,
+  height: 3024,
+  columns: 28,
+  rows: 21,
+};
 
-const CELL_WIDTH = SHEET_WIDTH / COLUMNS;
-const CELL_HEIGHT = SHEET_HEIGHT / ROWS;
+const CELL_WIDTH = SHEET.width / SHEET.columns;
+const CELL_HEIGHT = SHEET.height / SHEET.rows;
 
-// 600 cells exist; only the first 584 are artwork. The remainder squares off
-// the grid and must never be drawn.
+const COLUMNS = SHEET.columns;
+
+// The 28x21 grid holds 588 cells; only the first 584 are artwork. The remaining
+// four pad the grid out and must never be drawn.
 const FRAME_COUNT = 584;
 
 // Source numbering is 1-based: reveal is 1..164, loop is 165..584. Stored
@@ -35,6 +47,7 @@ const FRAME_COUNT = 584;
 const REVEAL_END = 164;
 const FPS = 30;
 
+// No rounding needed — with an exact grid these are integers by construction.
 function cellAt(index) {
   const column = index % COLUMNS;
   const row = Math.floor(index / COLUMNS);
@@ -71,7 +84,7 @@ export function initFootIcon() {
       const rect = canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
 
-      // Capped at 2: the cell is only 144.6px, so asking for 3x device pixels
+      // Capped at 2: the cell is only 144px, so asking for 3x device pixels
       // upscales further from the same source and buys nothing but fill rate.
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       const width = Math.round(rect.width * ratio);
@@ -89,10 +102,14 @@ export function initFootIcon() {
       context.clearRect(0, 0, canvas.width, canvas.height);
 
       // contain-fit, so a mismatch between the box and the cell letterboxes
-      // rather than stretching — the cells are very slightly non-square.
+      // rather than stretching.
+      //
+      // Destination stays rounded even though the source is now exact: the
+      // canvas box is sized from a layout rect and a DPR, so scale lands
+      // fractional regardless of how clean the sheet is.
       const scale = Math.min(canvas.width / CELL_WIDTH, canvas.height / CELL_HEIGHT);
-      const w = CELL_WIDTH * scale;
-      const h = CELL_HEIGHT * scale;
+      const w = Math.round(CELL_WIDTH * scale);
+      const h = Math.round(CELL_HEIGHT * scale);
 
       context.drawImage(
         sheet,
@@ -100,8 +117,8 @@ export function initFootIcon() {
         cell.y,
         CELL_WIDTH,
         CELL_HEIGHT,
-        (canvas.width - w) / 2,
-        (canvas.height - h) / 2,
+        Math.round((canvas.width - w) / 2),
+        Math.round((canvas.height - h) / 2),
         w,
         h
       );
@@ -144,7 +161,7 @@ export function initFootIcon() {
       { once: true }
     );
 
-    sheet.src = SHEET;
+    sheet.src = SHEET.src;
 
     new ResizeObserver(() => {
       size();

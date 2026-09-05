@@ -1,50 +1,67 @@
-// Two separate stacks of layered backdrop-filters, both of which Safari
-// handles badly — backdrop-filter repaints every frame on scroll, and Safari
-// can't hardware-accelerate stacked instances of it the way Chromium does.
+// Two stacks of layered backdrop-filters, both removed on Safari. backdrop-filter
+// repaints every frame on scroll there, and Safari cannot hardware-accelerate
+// stacked instances of it the way Chromium does — cheaper to drop the effect
+// than to try to make it cheap.
 //
-// They get different treatment because they cost different amounts:
-//
-// .progressive-blur-wrapper (nav) is 7 layers, blur 32px down to 0, over a
-// scrolling page. Collapsed to a single layer rather than dropped — one
-// backdrop-filter is cheap enough, and the fixed 100-160px strip under the nav
-// is small. The survivor's blur and mask are set inline so the ramp still
-// reads as a gradient without the other six; leaving it on the stylesheet's
-// nth-child(1) rule would keep blur(32px) and a mask that clears at 40%,
-// which without the layers below it ends in a visible hard band.
+// .progressive-blur-wrapper is the strip under the nav: 7 layers, blur 32px down
+// to 0, over a scrolling page. It was briefly collapsed to a single layer here
+// rather than removed, on the theory that one backdrop-filter over a small fixed
+// strip was affordable. It is not; it goes.
 //
 // .hero_hardware-blur is 5 layers at blur(6/14/26/42/64px), built in JS by
-// hero-text-split.js. Removed outright: the radii go to 64px, and it sits over
-// the hero video, so its backdrop is invalidated every frame the video
-// advances rather than only on scroll. It is position:absolute, so removing it
-// shifts nothing, and doing it here — before hero-text-split.js runs — means
-// buildProgressiveBlur() never builds the layers at all. That module already
-// guards both its uses on the container existing.
-const NAV_BLUR_WRAPPER = '.progressive-blur-wrapper';
-const HERO_BLUR_STACK = '.hero_hardware-blur';
+// hero-text-split.js. Worse than the nav's on both counts: bigger radii, and it
+// sits over the hero video, so its backdrop is invalidated every frame the video
+// advances rather than only on scroll.
+//
+// Both are position:absolute or fixed, so removing them shifts no layout. Doing
+// it here — before hero-text-split.js runs — also means buildProgressiveBlur()
+// never builds its layers at all; that module already guards both its uses on
+// the container existing.
+// .hero_hardware-blur is removed outright: 5 layers at blur(6/14/26/42/64px)
+// over the hero video, so its backdrop is invalidated every frame the video
+// advances rather than only on scroll. Nothing sits behind it that needs
+// covering.
+//
+// .progressive-blur-wrapper is kept, collapsed to a single 1px layer.
+//
+// Removing it entirely was tried and left something visible at the top of the
+// screen that the strip had been covering. Replacing it with a white gradient
+// was also tried: it does not substitute, because a blur softens what is behind
+// it while a white wash lightens it, and over the hero video that read as a
+// large white band.
+//
+// 1px is not free — backdrop-filter forces a backdrop snapshot and a filter pass
+// per frame at any radius, and the radius only scales the blur work itself. But
+// one layer at 1px against seven running 32px down to 0 is most of the saving,
+// and it keeps a backdrop-filter element at the top edge, which is what Safari
+// 26 samples to tint the toolbar strip.
+const REMOVE = '.hero_hardware-blur';
+const COLLAPSE = '.progressive-blur-wrapper';
 
-const NAV_BLUR_RADIUS = 20;
-const NAV_BLUR_MASK = 'linear-gradient(to bottom, black 0%, black 35%, transparent 100%)';
-
-function collapseNavBlur(wrapper) {
-  const layers = [...wrapper.querySelectorAll('.blur-filter')];
-  if (!layers.length) return;
-
-  layers.slice(1).forEach((layer) => layer.remove());
-
-  const [layer] = layers;
-  layer.style.backdropFilter = `blur(${NAV_BLUR_RADIUS}px)`;
-  layer.style.webkitBackdropFilter = `blur(${NAV_BLUR_RADIUS}px)`;
-  layer.style.mask = NAV_BLUR_MASK;
-  layer.style.webkitMask = NAV_BLUR_MASK;
-}
+const RADIUS = 1;
 
 export function initSafariBlurDisable() {
   const userAgent = navigator.userAgent;
   const isSafari = /Safari/i.test(userAgent) && !/Chrome|Chromium|CriOS|Edg|EdgiOS|OPR|FxiOS/i.test(userAgent);
   if (!isSafari) return;
 
-  const navBlur = document.querySelector(NAV_BLUR_WRAPPER);
-  if (navBlur) collapseNavBlur(navBlur);
+  document.querySelector(REMOVE)?.remove();
 
-  document.querySelector(HERO_BLUR_STACK)?.remove();
+  const layers = document.querySelectorAll(`${COLLAPSE} .blur-filter`);
+  if (!layers.length) return;
+
+  // Keep the first, drop the rest.
+  layers.forEach((layer, index) => {
+    if (index > 0) layer.remove();
+  });
+
+  const [layer] = layers;
+  layer.style.backdropFilter = `blur(${RADIUS}px)`;
+  layer.style.webkitBackdropFilter = `blur(${RADIUS}px)`;
+  // The stylesheet masks each layer to its own band of the stack — nth-child(1)
+  // clears at 40%. With the others gone that leaves a hard edge, so this one
+  // covers the full strip and fades out at the bottom instead.
+  const mask = 'linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%)';
+  layer.style.mask = mask;
+  layer.style.webkitMask = mask;
 }

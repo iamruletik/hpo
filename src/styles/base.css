@@ -113,3 +113,9 @@ body[data-theme='light'] {
   --s-text: #1e1e1e;
   --s-bg: #fff;
 }
+
+.hero-picture,
+.hero-placeholder-image {
+  backdrop-filter: blur(0px);
+  
+}
