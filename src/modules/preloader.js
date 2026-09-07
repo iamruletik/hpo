@@ -2,8 +2,19 @@ const MINIMUM_SEQUENCE = 2000;
 const COMPLETION_DURATION = 260;
 const REVEAL_DELAY = 220;
 const REVEAL_DURATION = 720;
-// Maximum wait for hero assets before the preloader finishes regardless.
-const MAXIMUM_WAITING_TIME = 5000;
+// Maximum wait before the preloader finishes regardless.
+//
+// Was 5000, which conflated two different situations: main.js being BROKEN and
+// main.js being SLOW. Both lost the race to the same timer, so on a poor
+// connection the curtains opened on an uninitialised page — tabs unfiltered,
+// carousel unbuilt, hero text still hidden. That is the exact failure the
+// preloader exists to prevent.
+//
+// Breakage is now detected directly (see waitForScriptFailure), so this only
+// has to cover the case where the script neither loads nor errors — a stalled
+// connection that never resolves either way. That deserves patience, not a
+// five-second fuse.
+const MAXIMUM_WAITING_TIME = 20000;
 
 const PROGRESS_STOPS = [
   [0, 0],
@@ -168,15 +179,32 @@ function waitForSiteReady() {
   });
 }
 
+// Resolves ONLY if the main bundle fails to load — a 404, a dead tunnel, a
+// network error. A module script fires `error` on its own element in those
+// cases, so this distinguishes "broken" from "slow" instead of letting a timer
+// guess. preloader-entry.js runs ahead of main.js, so the listener is always
+// attached before the failure can happen.
+//
+// Never resolves on success: a script that loads is main.js's job to announce
+// via site:ready.
+function waitForScriptFailure() {
+  return new Promise((resolve) => {
+    const script = document.querySelector('script[type="module"][src*="main.js"]');
+    if (!script) return;
+    script.addEventListener('error', resolve, { once: true });
+  });
+}
+
 function waitForHeroReady(preloader) {
   const ready = Promise.all([
     waitForHeroAssets(preloader).catch(() => undefined),
     waitForSiteReady(),
   ]);
-  // Still capped: if main.js 404s or throws during init, the curtains open
-  // anyway rather than trapping the user behind a white screen.
+  // Three ways out, in order of how much we trust them: everything is ready,
+  // the bundle demonstrably failed, or nothing has resolved for long enough
+  // that waiting further is worse than opening incomplete.
   const safetyTimeout = new Promise((resolve) => window.setTimeout(resolve, MAXIMUM_WAITING_TIME));
-  return Promise.race([ready, safetyTimeout]);
+  return Promise.race([ready, waitForScriptFailure(), safetyTimeout]);
 }
 
 // A classic (non-module) inline script in the site head — see Webflow's

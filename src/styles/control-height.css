@@ -1,0 +1,63 @@
+/* ==========================================================================
+   Mobile control-height cap.
+
+   Imported LAST from style.css on purpose. Every selector here also has a rule
+   in an earlier file — .logo-wrap and .nav_center in nav.css, the buttons in
+   demo-button.css / arrow-button.css — at the same specificity, so anywhere
+   earlier in the cascade this silently loses. It did: the first version lived
+   in base.css and nav.css kept overriding it.
+   ========================================================================== */
+
+@media screen and (max-width: 991px) {
+  :root {
+    --btn-height: 40px;
+  }
+
+  .demo-button-css,
+  .arrow-button,
+  .solution-more,
+  .button,
+  .button.is-secondary {
+    height: var(--btn-height);
+    padding-block: 0;
+  }
+
+  /* .button is the only one that is not already a centring flex/grid box, so
+     without this its label would sit at the top of the fixed height. */
+  .button,
+  .button.is-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Same number, so the nav pill and the buttons beside it line up instead of
+     the buttons reading as undersized.
+
+     .nav_wrapper is only a 3-column grid — its height comes from whichever
+     child is tallest, so capping it alone would leave .nav_center overflowing
+     it. .nav_center is the white pill that actually sets the height: .85rem +
+     .8rem of padding around a 1.5rem burger box, 48.1px on a 390px phone.
+     Horizontal padding stays, so the pill keeps its shape. */
+  .nav_wrapper,
+  .nav_center {
+    height: var(--btn-height);
+  }
+
+  .nav_center {
+    padding-block: 0;
+  }
+
+  /* The circular logo button sitting beside the pill. Fixed at 3rem square in
+     the Designer, which is 46.6px on a 390px phone — taller than everything
+     else in the header once the rest is capped. Square rather than just height
+     capped, or the border-radius: 100px would render an oval.
+
+     padding is .88rem there and sized the SVG inside; at 40px that leaves too
+     little room for the mark, so it comes down proportionally. */
+  .logo-wrap {
+    width: var(--btn-height);
+    height: var(--btn-height);
+    padding: 0.5rem;
+  }
+}

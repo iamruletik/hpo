@@ -2,8 +2,14 @@ import { gsap, ScrollTrigger } from '../core/gsap.js';
 import SplitType from 'split-type';
 import { PIN_LENGTH } from './cta-parallax.js';
 
-// Fraction of the pinned scroll that passes before the copy comes in.
-const REVEAL_AT = 0.15;
+// No threshold any more. It used to be a fraction of the pinned scroll (0.15),
+// which is what made the copy arrive late — a tenth of a viewport of scrolling
+// after the section had already stuck. onEnter below fires at the stick itself,
+// so there is nothing left to measure a fraction of.
+//
+// Setting that constant to 0 rather than removing it was briefly worse than
+// either: the refresh check read `progress >= 0`, which is true before the
+// section is reached at all, so the reveal ran on page load.
 
 export async function initCtaReveal() {
   if (document.fonts?.ready) await document.fonts.ready;
@@ -55,13 +61,16 @@ export async function initCtaReveal() {
       start: 'top top',
       end: PIN_LENGTH,
       invalidateOnRefresh: true,
-      onUpdate: (self) => {
-        if (self.progress >= REVEAL_AT) timeline.play();
-      },
-      // Reloading below the section starts it past the threshold with no scroll
-      // event to follow, so onUpdate alone would leave the copy parked.
+      // Fires exactly at 'top top' — the instant the section sticks, which is
+      // the whole ask. Nothing else is needed for the live case; an onUpdate
+      // here would only wait for the next scroll event after that point.
+      onEnter: () => timeline.play(),
+      // Reload landing inside or below the pinned range: onEnter never fires
+      // because the boundary was never crossed. Strictly greater than zero —
+      // progress is exactly 0 while the section is still ahead of you, so
+      // `>= 0` would play it on every load from the top of the page.
       onRefresh: (self) => {
-        if (self.progress >= REVEAL_AT) timeline.play();
+        if (self.progress > 0) timeline.play();
       },
     });
   }

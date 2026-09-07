@@ -8,6 +8,12 @@ html {
   }
 }
 
+@media screen and (max-width: 991px) {
+  html {
+    font-size: 1.615vw;
+  }
+}
+
 @media screen and (max-width: 479px) {
   html {
     font-size: 3.9800995024875627vw;

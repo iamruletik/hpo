@@ -38,12 +38,59 @@
   background-color: rgba(255, 255, 255, 0.12);
 }
 
-.nav-menu-link:hover .nav-link-bg {
-  opacity: 1;
+/* The gradient border used to be .nav-link-bg, an SVG at position:absolute;
+   inset:0. An SVG has a fixed aspect ratio, so stretching one across a link
+   that is 2.75rem tall and as wide as the menu distorts the corner radii and
+   the stroke weight — matched well enough at the desktop width it was drawn
+   for, badly everywhere else.
+
+   Drawn in CSS instead: a gradient background clipped to a 1px ring by masking
+   the padding box out of the border box. Same technique as .logo-wrap::before
+   below and the button rings in the Webflow head — border-color cannot take a
+   gradient, and border-image ignores border-radius, so a masked background is
+   what does both.
+
+   Stops are the source HSBA values converted:
+     hsba(9, 77%, 94%, 1)     -> #F05337
+     hsba(198, 94%, 83%, 0.5) -> rgba(13, 152, 212, 0.5)
+     hsba(156, 100%, 80%, 1)  -> #00CC7A */
+.nav-menu-link::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* Follows the Designer's .75rem without restating it, so a radius change in
+     Webflow does not leave the ring behind. */
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    45deg,
+    #f05337 0%,
+    rgba(13, 152, 212, 0.5) 50%,
+    #00cc7a 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-in-out;
 }
 
+.nav-menu-link:hover::before,
+.nav-menu-link:focus-visible::before {
+  opacity: 0.75;
+}
+
+/* The image it replaced. Hidden rather than deleted from the Designer so the
+   markup stays as authored. */
 .nav-link-bg {
-  opacity: 0;
+  display: none;
 }
 
 .nav-menu-open {
@@ -151,4 +198,25 @@
   .header .nav_buttons .demo-button-css {
     display: none;
   }
+}
+
+/* Section label in the nav pill — built by nav-section-label.js, which also
+   sets the wrap to overflow:hidden so the two slots roll behind a mask.
+
+   Absolute so it stacks on the logo instead of sitting beside it: both occupy
+   the same slot and only one is ever in view. The logo keeps its own flow
+   position, which is what sizes the wrap. */
+.nav-section-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  color: currentColor;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform, opacity;
 }

@@ -64,11 +64,18 @@
   will-change: transform, opacity;
 }
 
-[data-card]:not([data-card-layer='layer-1']) [data-card-open] {
+/* Cards with nothing to show. tabs.js adds .is-modal-empty when a card's
+   modal bullet fields are unbound, so the + and the pointer follow the content
+   rather than a hardcoded layer name — fill a layer in later and it starts
+   working with no code change.
+
+   This replaces a pair of rules keyed on :not([data-card-layer='layer-1']),
+   from when layer 1 was the only authored layer. */
+[data-card].is-modal-empty [data-card-open] {
   display: none !important;
 }
 
-[data-card]:not([data-card-layer='layer-1']) {
+[data-card].is-modal-empty {
   cursor: default;
 }
 

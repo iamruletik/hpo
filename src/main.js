@@ -10,6 +10,7 @@ import { initPlatformExplorerSticky } from './modules/platform-explorer-sticky.j
 import { initHeroTextSplit } from './modules/hero-text-split.js';
 import { initTitleLineReveal } from './modules/title-line-reveal.js';
 import { initNavLogoTheme } from './modules/nav-logo-theme.js';
+import { initNavSectionLabel } from './modules/nav-section-label.js';
 import { initThemeColorSwap } from './modules/theme-color-swap.js';
 import { initSecondaryButtonRoll } from './modules/second-button.js';
 import { initOfferIcons } from './modules/offer-icons.js';
@@ -58,6 +59,9 @@ function runEarly() {
   initHeroTextSplit();
   initTitleLineReveal();
   initNavLogoTheme();
+  // Above the fold and in the nav, so not deferred — it must be showing the
+  // right thing the moment the curtains open on a reload partway down.
+  initNavSectionLabel();
   // theme-color-swap publishes window.requestChameleonButtonsUpdate, which
   // second-button.js calls — keep the pair together and in this order.
   initThemeColorSwap();

@@ -338,9 +338,32 @@ export function initTabs() {
         });
       });
 
+      // Whether this card has anything worth opening. Title and image are not
+      // the test: openCardModal falls back to the card's own for both, so they
+      // are never empty. The bullet blocks are the actual modal content, and
+      // Webflow marks an unbound rich text field with w-dyn-bind-empty — a
+      // class check rather than a text check, because a field can also hold an
+      // empty <p> that reads as non-empty to textContent.
+      function hasModalContent(cardElement) {
+        const data = cardElement.querySelector('.card-modal-data');
+        if (!data) return false;
+
+        return ['[data-client-bullets]', '[data-company-bullets]'].some((selector) => {
+          const field = data.querySelector(selector);
+          if (!field || field.classList.contains('w-dyn-bind-empty')) return false;
+          return field.textContent.trim().length > 0;
+        });
+      }
+
+      // Every card opens its own modal on every layer, provided it has content.
+      // This used to be gated to 'layer-1' — the only layer authored at the
+      // time — with matching CSS hiding the + everywhere else. Now the card
+      // itself decides, so filling in a layer later just works with no code
+      // change, and an unfinished one stays inert instead of opening blank.
       cardEntries.forEach(({ card }) => {
+        card.classList.toggle('is-modal-empty', !hasModalContent(card));
         card.addEventListener('click', () => {
-          if (card.getAttribute('data-card-layer') === 'layer-1') openCardModal(card);
+          if (hasModalContent(card)) openCardModal(card);
         });
       });
 
