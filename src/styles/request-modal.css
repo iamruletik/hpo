@@ -170,9 +170,9 @@
 }
 
 @media screen and (max-width: 479px) {
-  .request-modal .form {
+  /*.request-modal .form {
     grid-template-columns: 1fr;
-  }
+  }*/
 
   .request-modal .modal-field {
     grid-column: 1 / -1;
